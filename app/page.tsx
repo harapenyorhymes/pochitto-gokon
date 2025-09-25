@@ -1,151 +1,283 @@
+'use client'
+
+import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
+import Link from 'next/link'
+import { AuthGuard } from '@/components/AuthGuard'
+import { useAuth } from '@/contexts/AuthContext'
+import BottomNavigation from '@/components/BottomNavigation'
+
+interface Profile {
+  id: string
+  nickname: string
+  age: number
+  gender: 'male' | 'female'
+  bio: string
+  is_complete: boolean
+  created_at: string
+  updated_at: string
+}
+
 export default function Home() {
-  return (
-    <div className="min-h-screen bg-white">
-      {/* Header */}
-      <header className="fixed top-0 left-0 right-0 bg-white/95 backdrop-blur-sm border-b border-gray-100 z-50">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <div className="flex items-center space-x-2">
-              <span className="text-2xl">🎉</span>
-              <span className="text-xl font-bold text-primary-600">ポチッと合コン</span>
-            </div>
-            <button className="text-primary-600 hover:text-primary-700 font-medium px-4 py-2 rounded-lg hover:bg-primary-50 transition-colors">
-              ログイン
+  const [profile, setProfile] = useState<Profile | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const { user } = useAuth()
+  const router = useRouter()
+
+  useEffect(() => {
+    const fetchProfile = async () => {
+      try {
+        const response = await fetch('/api/profile')
+        const result = await response.json()
+
+        if (!response.ok) {
+          throw new Error(result.error || 'プロフィールの取得に失敗しました')
+        }
+
+        setProfile(result.data)
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'エラーが発生しました')
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    if (user) {
+      fetchProfile()
+    }
+  }, [user])
+
+  if (loading) {
+    return (
+      <AuthGuard requireAuth={true}>
+        <div style={{minHeight: '100vh', background: 'linear-gradient(135deg, #fdf2f8, #ffffff, #faf5ff)', display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
+          <div style={{width: '48px', height: '48px', border: '3px solid #ec4899', borderTop: '3px solid transparent', borderRadius: '50%', animation: 'spin 1s linear infinite'}}></div>
+        </div>
+        <BottomNavigation />
+      </AuthGuard>
+    )
+  }
+
+  if (error) {
+    return (
+      <AuthGuard requireAuth={true}>
+        <div style={{minHeight: '100vh', background: 'linear-gradient(135deg, #fdf2f8, #ffffff, #faf5ff)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px'}}>
+          <div style={{textAlign: 'center', background: 'rgba(255, 255, 255, 0.9)', backdropFilter: 'blur(16px)', borderRadius: '16px', padding: '24px', boxShadow: '0 10px 25px -3px rgba(0, 0, 0, 0.1)'}}>
+            <p style={{color: '#ef4444', marginBottom: '16px', fontSize: '16px'}}>{error}</p>
+            <button
+              onClick={() => window.location.reload()}
+              style={{background: 'linear-gradient(to right, #ec4899, #8b5cf6)', color: 'white', padding: '8px 16px', borderRadius: '8px', border: 'none', cursor: 'pointer'}}
+            >
+              再試行
             </button>
           </div>
         </div>
-      </header>
+        <BottomNavigation />
+      </AuthGuard>
+    )
+  }
 
-      {/* Hero Section */}
-      <section className="pt-24 pb-16 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-4xl mx-auto text-center">
-          <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-gray-900 mb-6">
-            マッチングアプリに
-            <br className="sm:hidden" />
-            <span className="text-primary-500">疲れたあなたへ</span>
-          </h1>
-          <p className="text-lg sm:text-xl text-gray-600 mb-8 max-w-2xl mx-auto">
-            空き日程を登録するだけで、
-            <br className="sm:hidden" />
-            AIが合コンを自動セッティング
-          </p>
-          <button className="bg-primary-500 hover:bg-primary-600 text-white font-semibold text-lg px-8 py-4 rounded-full shadow-lg hover:shadow-xl transition-all transform hover:scale-105">
-            無料で始める
-          </button>
+  if (!profile) {
+    return (
+      <AuthGuard requireAuth={true}>
+        <div style={{minHeight: '100vh', background: 'linear-gradient(135deg, #fdf2f8, #ffffff, #faf5ff)', paddingTop: '48px', paddingBottom: '80px'}}>
+          <div style={{maxWidth: '428px', margin: '0 auto', padding: '0 16px'}}>
+            <div style={{background: 'rgba(255, 255, 255, 0.9)', backdropFilter: 'blur(16px)', borderRadius: '16px', padding: '32px', textAlign: 'center', boxShadow: '0 10px 25px -3px rgba(0, 0, 0, 0.1)', marginTop: '48px'}}>
+              <div style={{width: '80px', height: '80px', background: 'linear-gradient(135deg, #ec4899, #8b5cf6)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 24px', fontSize: '32px'}}>👤</div>
+              <h1 style={{fontSize: '24px', fontWeight: 'bold', color: '#1f2937', marginBottom: '16px'}}>
+                プロフィールがまだ作成されていません
+              </h1>
+              <p style={{color: '#6b7280', marginBottom: '32px', lineHeight: '1.6'}}>
+                素敵な出会いのために、まずはプロフィールを作成しましょう ✨
+              </p>
+              <Link
+                href="/profile/create"
+                style={{display: 'inline-block', background: 'linear-gradient(to right, #ec4899, #8b5cf6)', color: 'white', fontWeight: '600', padding: '12px 24px', borderRadius: '12px', textDecoration: 'none', boxShadow: '0 4px 14px 0 rgba(236, 72, 153, 0.3)', transition: 'all 0.3s ease', transform: 'scale(1)'}}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = 'scale(1.05)'
+                  e.currentTarget.style.boxShadow = '0 8px 25px 0 rgba(236, 72, 153, 0.4)'
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'scale(1)'
+                  e.currentTarget.style.boxShadow = '0 4px 14px 0 rgba(236, 72, 153, 0.3)'
+                }}
+              >
+                🚀 プロフィールを作成
+              </Link>
+            </div>
+          </div>
         </div>
-      </section>
+        <BottomNavigation />
+      </AuthGuard>
+    )
+  }
 
-      {/* Steps Section */}
-      <section className="py-16 bg-gray-50">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h2 className="text-2xl sm:text-3xl font-bold text-center text-gray-900 mb-12">
-            3つのステップで簡単参加
-          </h2>
-          <div className="grid md:grid-cols-3 gap-8">
-            {/* Step 1 */}
-            <div className="bg-white rounded-xl p-6 shadow-md hover:shadow-lg transition-shadow">
-              <div className="text-center">
-                <div className="text-4xl mb-4">📅</div>
-                <h3 className="text-xl font-semibold text-gray-900 mb-3">
-                  Step1: 空いてる日を選ぶ
-                </h3>
-                <p className="text-gray-600">
-                  カレンダーから都合の良い日程を選択するだけ
-                </p>
+  return (
+    <AuthGuard requireAuth={true}>
+      <div style={{minHeight: '100vh', background: 'linear-gradient(135deg, #fdf2f8, #ffffff, #faf5ff)', paddingTop: '24px', paddingBottom: '80px'}}>
+        {/* Header */}
+        <header style={{background: 'rgba(255, 255, 255, 0.9)', backdropFilter: 'blur(20px)', borderBottom: '1px solid rgba(255, 255, 255, 0.2)', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'}}>
+          <div style={{maxWidth: '428px', margin: '0 auto', padding: '0 16px'}}>
+            <div style={{display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: '56px'}}>
+              <div style={{display: 'flex', alignItems: 'center', gap: '8px'}}>
+                <div style={{width: '32px', height: '32px', background: 'linear-gradient(135deg, #ec4899, #8b5cf6)', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
+                  <span style={{color: 'white', fontSize: '16px', fontWeight: 'bold'}}>👤</span>
+                </div>
+                <h1 style={{fontSize: '20px', fontWeight: 'bold', background: 'linear-gradient(to right, #ec4899, #8b5cf6)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent'}}>プロフィール</h1>
+              </div>
+              <Link
+                href="/profile/edit"
+                style={{background: 'linear-gradient(to right, #ec4899, #8b5cf6)', color: 'white', padding: '8px 16px', borderRadius: '8px', fontSize: '14px', fontWeight: '500', textDecoration: 'none', boxShadow: '0 2px 4px 0 rgba(236, 72, 153, 0.2)', transition: 'all 0.2s ease'}}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = 'scale(1.05)'
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'scale(1)'
+                }}
+              >
+                ✏️ 編集
+              </Link>
+            </div>
+          </div>
+        </header>
+
+        {/* Profile Content */}
+        <div style={{maxWidth: '428px', margin: '0 auto', padding: '0 16px'}}>
+          <div style={{background: 'rgba(255, 255, 255, 0.9)', backdropFilter: 'blur(16px)', borderRadius: '16px', padding: '24px', marginTop: '24px', boxShadow: '0 10px 25px -3px rgba(0, 0, 0, 0.1)', border: '1px solid rgba(255, 255, 255, 0.2)'}}>
+
+            {/* Profile Avatar */}
+            <div style={{textAlign: 'center', marginBottom: '24px'}}>
+              <div style={{width: '120px', height: '120px', background: 'linear-gradient(135deg, #ec4899, #8b5cf6)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto', fontSize: '48px', boxShadow: '0 10px 25px -3px rgba(236, 72, 153, 0.3)'}}>
+                {profile.gender === 'male' ? '👨' : '👩'}
               </div>
             </div>
 
-            {/* Step 2 */}
-            <div className="bg-white rounded-xl p-6 shadow-md hover:shadow-lg transition-shadow">
-              <div className="text-center">
-                <div className="text-4xl mb-4">🤖</div>
-                <h3 className="text-xl font-semibold text-gray-900 mb-3">
-                  Step2: AIが自動マッチング
-                </h3>
-                <p className="text-gray-600">
-                  AIが最適な相手とお店を自動で選出
-                </p>
+            <div style={{display: 'flex', flexDirection: 'column', gap: '20px'}}>
+              {/* ニックネーム */}
+              <div style={{textAlign: 'center'}}>
+                <h2 style={{fontSize: '24px', fontWeight: 'bold', color: '#1f2937', marginBottom: '4px'}}>{profile.nickname}</h2>
+                <p style={{color: '#6b7280', fontSize: '16px'}}>{profile.age}歳 • {profile.gender === 'male' ? '男性' : '女性'}</p>
               </div>
-            </div>
 
-            {/* Step 3 */}
-            <div className="bg-white rounded-xl p-6 shadow-md hover:shadow-lg transition-shadow">
-              <div className="text-center">
-                <div className="text-4xl mb-4">🍻</div>
-                <h3 className="text-xl font-semibold text-gray-900 mb-3">
-                  Step3: 当日お店に行くだけ
-                </h3>
-                <p className="text-gray-600">
-                  面倒な調整は一切不要、楽しむだけ
-                </p>
+              {/* 自己紹介 */}
+              <div style={{background: 'rgba(249, 250, 251, 0.5)', borderRadius: '12px', padding: '16px', border: '1px solid rgba(229, 231, 235, 0.3)'}}>
+                <h3 style={{fontSize: '14px', fontWeight: '600', color: '#6b7280', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.05em'}}>💬 自己紹介</h3>
+                <p style={{color: '#374151', lineHeight: '1.6', whiteSpace: 'pre-wrap'}}>{profile.bio}</p>
+              </div>
+
+              {/* Stats Cards */}
+              <div style={{display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px'}}>
+                <div style={{background: 'rgba(236, 72, 153, 0.1)', borderRadius: '12px', padding: '16px', textAlign: 'center'}}>
+                  <div style={{fontSize: '20px', marginBottom: '4px'}}>🎂</div>
+                  <div style={{fontSize: '18px', fontWeight: 'bold', color: '#1f2937'}}>{profile.age}歳</div>
+                  <div style={{fontSize: '12px', color: '#6b7280'}}>年齢</div>
+                </div>
+                <div style={{background: 'rgba(139, 92, 246, 0.1)', borderRadius: '12px', padding: '16px', textAlign: 'center'}}>
+                  <div style={{fontSize: '20px', marginBottom: '4px'}}>📅</div>
+                  <div style={{fontSize: '12px', fontWeight: '600', color: '#1f2937'}}>登録日</div>
+                  <div style={{fontSize: '12px', color: '#6b7280'}}>{new Date(profile.created_at).toLocaleDateString('ja-JP')}</div>
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div style={{display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '8px'}}>
+                <Link
+                  href="/events"
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '8px',
+                    background: 'linear-gradient(135deg, #ec4899, #8b5cf6)',
+                    color: 'white',
+                    padding: '16px',
+                    borderRadius: '12px',
+                    textDecoration: 'none',
+                    fontWeight: '600',
+                    boxShadow: '0 4px 14px 0 rgba(236, 72, 153, 0.3)',
+                    transition: 'all 0.3s ease',
+                    transform: 'scale(1)'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.transform = 'scale(1.02)'
+                    e.currentTarget.style.boxShadow = '0 8px 25px 0 rgba(236, 72, 153, 0.4)'
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.transform = 'scale(1)'
+                    e.currentTarget.style.boxShadow = '0 4px 14px 0 rgba(236, 72, 153, 0.3)'
+                  }}
+                >
+                  <span>📅</span>
+                  <span>日程を登録する</span>
+                </Link>
+
+                <div style={{display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px'}}>
+                  <Link
+                    href="/chat"
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '4px',
+                      background: 'rgba(255, 255, 255, 0.8)',
+                      backdropFilter: 'blur(16px)',
+                      color: '#374151',
+                      padding: '12px',
+                      borderRadius: '12px',
+                      textDecoration: 'none',
+                      fontWeight: '500',
+                      border: '1px solid rgba(229, 231, 235, 0.3)',
+                      transition: 'all 0.2s ease',
+                      fontSize: '14px'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = 'rgba(249, 250, 251, 0.9)'
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = 'rgba(255, 255, 255, 0.8)'
+                    }}
+                  >
+                    <span>💬</span>
+                    <span>チャット</span>
+                  </Link>
+
+                  <Link
+                    href="/profile/edit"
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '4px',
+                      background: 'rgba(255, 255, 255, 0.8)',
+                      backdropFilter: 'blur(16px)',
+                      color: '#374151',
+                      padding: '12px',
+                      borderRadius: '12px',
+                      textDecoration: 'none',
+                      fontWeight: '500',
+                      border: '1px solid rgba(229, 231, 235, 0.3)',
+                      transition: 'all 0.2s ease',
+                      fontSize: '14px'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = 'rgba(249, 250, 251, 0.9)'
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = 'rgba(255, 255, 255, 0.8)'
+                    }}
+                  >
+                    <span>⚙️</span>
+                    <span>設定</span>
+                  </Link>
+                </div>
               </div>
             </div>
           </div>
         </div>
-      </section>
 
-      {/* Features Section */}
-      <section className="py-16">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h2 className="text-2xl sm:text-3xl font-bold text-center text-gray-900 mb-12">
-            ポチッと合コンの特徴
-          </h2>
-          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {/* Feature 1 */}
-            <div className="text-center p-6">
-              <div className="bg-primary-100 rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-4">
-                <span className="text-2xl">👤</span>
-              </div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">ソロ参加OK</h3>
-              <p className="text-gray-600 text-sm">
-                一人でも気軽に参加できます
-              </p>
-            </div>
-
-            {/* Feature 2 */}
-            <div className="text-center p-6">
-              <div className="bg-primary-100 rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-4">
-                <span className="text-2xl">👥</span>
-              </div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">友達と一緒も◎</h3>
-              <p className="text-gray-600 text-sm">
-                グループ参加も可能です
-              </p>
-            </div>
-
-            {/* Feature 3 */}
-            <div className="text-center p-6">
-              <div className="bg-primary-100 rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-4">
-                <span className="text-2xl">🔒</span>
-              </div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">安心・安全</h3>
-              <p className="text-gray-600 text-sm">
-                本人確認必須で安心
-              </p>
-            </div>
-
-            {/* Feature 4 */}
-            <div className="text-center p-6">
-              <div className="bg-primary-100 rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-4">
-                <span className="text-2xl">💰</span>
-              </div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">完全無料</h3>
-              <p className="text-gray-600 text-sm">
-                MVPは無料で提供
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Footer */}
-      <footer className="bg-gray-900 text-white py-8">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <p className="text-gray-400">
-            Copyright © 2024 ポチッと合コン
-          </p>
-        </div>
-      </footer>
-    </div>
+      </div>
+      <BottomNavigation />
+    </AuthGuard>
   )
 }
