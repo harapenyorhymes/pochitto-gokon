@@ -1,4 +1,4 @@
-import { createServerSupabaseClient } from '@/lib/supabase'
+import { createClient } from '@/lib/supabase'
 
 export interface ChatRoom {
   id: string
@@ -26,7 +26,7 @@ export interface Message {
  * グループのチャットルームを自動作成
  */
 export async function createChatRoomForGroup(groupId: string): Promise<ChatRoom | null> {
-  const supabase = createServerSupabaseClient()
+  const supabase = createClient()
 
   try {
     // 既存のチャットルームをチェック
@@ -80,7 +80,7 @@ export async function createChatRoomForGroup(groupId: string): Promise<ChatRoom 
  * ユーザーがグループメンバーかどうかチェック
  */
 export async function checkGroupMembership(groupId: string, userId: string): Promise<boolean> {
-  const supabase = createServerSupabaseClient()
+  const supabase = createClient()
 
   try {
     const { data, error } = await supabase
@@ -101,7 +101,7 @@ export async function checkGroupMembership(groupId: string, userId: string): Pro
  * チャットルームの有効期限をチェック
  */
 export async function isChatRoomActive(chatId: string): Promise<boolean> {
-  const supabase = createServerSupabaseClient()
+  const supabase = createClient()
 
   try {
     const { data, error } = await supabase
@@ -128,7 +128,7 @@ export async function isChatRoomActive(chatId: string): Promise<boolean> {
  * メッセージを既読にする
  */
 export async function markMessagesAsRead(chatId: string, userId: string, messageIds: string[]): Promise<boolean> {
-  const supabase = createServerSupabaseClient()
+  const supabase = createClient()
 
   try {
     const readRecords = messageIds.map(messageId => ({
@@ -160,7 +160,7 @@ export async function markMessagesAsRead(chatId: string, userId: string, message
  * 未読メッセージ数を取得
  */
 export async function getUnreadMessageCount(chatId: string, userId: string): Promise<number> {
-  const supabase = createServerSupabaseClient()
+  const supabase = createClient()
 
   try {
     // チャット内の全メッセージ数を取得

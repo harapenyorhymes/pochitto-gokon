@@ -129,7 +129,6 @@ export default function GridDateTimeSelector({ value, onChange }: GridDateTimeSe
                     borderRadius: '12px',
                     transition: 'all 0.3s ease',
                     transform: 'scale(1)',
-                    boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
                     ...(isSelected(dateOption.date, slot.id)
                       ? {
                           background: 'linear-gradient(to right, #ec4899, #8b5cf6)',
@@ -139,7 +138,8 @@ export default function GridDateTimeSelector({ value, onChange }: GridDateTimeSe
                       : {
                           background: 'rgba(255, 255, 255, 0.8)',
                           backdropFilter: 'blur(16px)',
-                          border: '2px solid #e5e7eb'
+                          border: '2px solid #e5e7eb',
+                          boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
                         }
                     )
                   }}

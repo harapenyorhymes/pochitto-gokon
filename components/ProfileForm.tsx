@@ -7,7 +7,7 @@ import { profileSchema, ProfileFormData } from '@/lib/validations/profile'
 import { z } from 'zod'
 
 interface ProfileFormProps {
-  initialData?: Partial<ProfileFormData>
+  initialData?: Partial<ProfileFormData & { age?: number }>
   onSubmit: (data: ProfileFormData) => Promise<void>
   isLoading?: boolean
   isEdit?: boolean
@@ -43,7 +43,7 @@ export const ProfileForm: React.FC<ProfileFormProps> = ({
     handleSubmit,
     formState: { errors, isValid },
     watch
-  } = useForm<ProfileFormData>({
+  } = useForm<any>({
     resolver: zodResolver(validationSchema),
     defaultValues: {
       nickname: initialData?.nickname || '',
@@ -86,7 +86,7 @@ export const ProfileForm: React.FC<ProfileFormProps> = ({
           placeholder="例：太郎、花子"
         />
         {errors.nickname && (
-          <p className="mt-1 text-sm text-red-600">{errors.nickname.message}</p>
+          <p className="mt-1 text-sm text-red-600">{errors.nickname?.message as string}</p>
         )}
       </div>
 
@@ -116,7 +116,7 @@ export const ProfileForm: React.FC<ProfileFormProps> = ({
             ⚠️ 生年月日は登録後に変更できませんので、正確に入力してください
           </p>
           {errors.birthDate && (
-            <p className="mt-1 text-sm text-red-600">{errors.birthDate.message}</p>
+            <p className="mt-1 text-sm text-red-600">{errors.birthDate?.message as string}</p>
           )}
         </div>
       )}
@@ -147,7 +147,7 @@ export const ProfileForm: React.FC<ProfileFormProps> = ({
           </label>
         </div>
         {errors.gender && (
-          <p className="mt-1 text-sm text-red-600">{errors.gender.message}</p>
+          <p className="mt-1 text-sm text-red-600">{errors.gender?.message as string}</p>
         )}
       </div>
 
@@ -166,7 +166,7 @@ export const ProfileForm: React.FC<ProfileFormProps> = ({
         <div className="flex justify-between mt-1">
           <div>
             {errors.bio && (
-              <p className="text-sm text-red-600">{errors.bio.message}</p>
+              <p className="text-sm text-red-600">{errors.bio?.message as string}</p>
             )}
           </div>
           <p className="text-sm text-gray-500">

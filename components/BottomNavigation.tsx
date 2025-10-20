@@ -130,7 +130,7 @@ export default function BottomNavigation() {
                 alignItems: 'center',
                 gap: '2px'
               }}>
-                <IconComponent style={{width: '24px', height: '24px'}} />
+                <IconComponent className="w-6 h-6" />
                 <span style={{
                   fontSize: '12px',
                   fontWeight: '600',

@@ -21,7 +21,9 @@
       "Bash(npm run build:*)",
       "Bash(npx tailwindcss:*)",
       "Bash(dir)",
-      "Bash(vercel:*)"
+      "Bash(vercel:*)",
+      "Bash(printf:*)",
+      "Bash(git tag:*)"
     ],
     "deny": [],
     "ask": []
