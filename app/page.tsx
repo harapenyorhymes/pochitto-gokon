@@ -22,8 +22,13 @@ export default function Home() {
   const [profile, setProfile] = useState<Profile | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const { user } = useAuth()
+  const { user, signOut } = useAuth()
   const router = useRouter()
+
+  const handleSignOut = async () => {
+    await signOut()
+    router.push('/login')
+  }
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -126,18 +131,34 @@ export default function Home() {
                 </div>
                 <h1 style={{fontSize: '20px', fontWeight: 'bold', background: 'linear-gradient(to right, #ec4899, #8b5cf6)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent'}}>プロフィール</h1>
               </div>
-              <Link
-                href="/profile/edit"
-                style={{background: 'linear-gradient(to right, #ec4899, #8b5cf6)', color: 'white', padding: '8px 16px', borderRadius: '8px', fontSize: '14px', fontWeight: '500', textDecoration: 'none', boxShadow: '0 2px 4px 0 rgba(236, 72, 153, 0.2)', transition: 'all 0.2s ease'}}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.transform = 'scale(1.05)'
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.transform = 'scale(1)'
-                }}
-              >
-                ✏️ 編集
-              </Link>
+              <div style={{display: 'flex', alignItems: 'center', gap: '8px'}}>
+                <Link
+                  href="/profile/edit"
+                  style={{background: 'linear-gradient(to right, #ec4899, #8b5cf6)', color: 'white', padding: '8px 16px', borderRadius: '8px', fontSize: '14px', fontWeight: '500', textDecoration: 'none', boxShadow: '0 2px 4px 0 rgba(236, 72, 153, 0.2)', transition: 'all 0.2s ease'}}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.transform = 'scale(1.05)'
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.transform = 'scale(1)'
+                  }}
+                >
+                  ✏️ 編集
+                </Link>
+                <button
+                  onClick={handleSignOut}
+                  style={{background: '#ef4444', color: 'white', padding: '8px 16px', borderRadius: '8px', fontSize: '14px', fontWeight: '500', border: 'none', cursor: 'pointer', boxShadow: '0 2px 4px 0 rgba(239, 68, 68, 0.2)', transition: 'all 0.2s ease'}}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = '#dc2626'
+                    e.currentTarget.style.transform = 'scale(1.05)'
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = '#ef4444'
+                    e.currentTarget.style.transform = 'scale(1)'
+                  }}
+                >
+                  🚪 ログアウト
+                </button>
+              </div>
             </div>
           </div>
         </header>

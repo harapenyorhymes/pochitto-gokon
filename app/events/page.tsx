@@ -5,8 +5,19 @@ import { useRouter } from 'next/navigation'
 import { AuthGuard } from '@/components/AuthGuard'
 import GridDateTimeSelector from '@/components/GridDateTimeSelector'
 import ParticipationSelector, { ParticipationType } from '@/components/ParticipationSelector'
+import AreaSelector from '@/components/AreaSelector'
 import BottomNavigation from '@/components/BottomNavigation'
 import { TIME_SLOTS, AREA_IDS, MAX_PARTICIPANTS } from '@/constants/timeSlots'
+
+// エリアの定義（現在は名古屋栄のみ）
+const AVAILABLE_AREAS = [
+  {
+    id: AREA_IDS.NAGOYA_SAKAE,
+    name: '名古屋栄エリア',
+    prefecture: '愛知県',
+    city: '名古屋市'
+  }
+]
 
 export interface EventData {
   date: string
@@ -18,6 +29,7 @@ export default function EventsPage() {
   const router = useRouter()
   const [selections, setSelections] = useState<{ date: string; timeSlotId: string }[]>([])
   const [participationType, setParticipationType] = useState<ParticipationType>('solo')
+  const [selectedAreaId, setSelectedAreaId] = useState<string | null>(AREA_IDS.NAGOYA_SAKAE)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -32,6 +44,11 @@ export default function EventsPage() {
       return
     }
 
+    if (!selectedAreaId) {
+      setError('エリアを選択してください')
+      return
+    }
+
     setIsSubmitting(true)
     setError(null)
 
@@ -43,7 +60,7 @@ export default function EventsPage() {
         return {
           event_date: selection.date,
           event_time: timeSlot,
-          area_id: AREA_IDS.NAGOYA_SAKAE,
+          area_id: selectedAreaId,
           participation_type: participationType,
           max_participants: MAX_PARTICIPANTS[participationType]
         }
@@ -70,7 +87,7 @@ export default function EventsPage() {
     } finally {
       setIsSubmitting(false)
     }
-  }, [selections, participationType, router])
+  }, [selections, participationType, selectedAreaId, router])
 
 
   return (
@@ -112,6 +129,13 @@ export default function EventsPage() {
           )}
 
           <div className="space-y-8">
+            {/* エリア選択 */}
+            <AreaSelector
+              value={selectedAreaId}
+              onChange={setSelectedAreaId}
+              areas={AVAILABLE_AREAS}
+            />
+
             {/* 日程選択 */}
             <GridDateTimeSelector
               value={selections}
