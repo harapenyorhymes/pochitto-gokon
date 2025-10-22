@@ -3,15 +3,17 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { signInWithEmail } from '@/lib/auth'
+import { signInWithEmail, signInWithLine } from '@/lib/auth'
 import { AuthGuard } from '@/components/AuthGuard'
 
 export default function LoginPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
+  const [lineLoading, setLineLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const router = useRouter()
+  const lineLoginEnabled = Boolean(process.env.NEXT_PUBLIC_LINE_LOGIN_CHANNEL_ID)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -56,6 +58,28 @@ export default function LoginPage() {
       setError('ログインに失敗しました。もう一度お試しください。')
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleLineLogin = async () => {
+    if (!lineLoginEnabled) {
+      setError('LINEログインは現在利用できません')
+      return
+    }
+
+    setError(null)
+    setLineLoading(true)
+
+    try {
+      const { error } = await signInWithLine()
+      if (error) {
+        setError(error.message || 'LINEログインに失敗しました')
+        setLineLoading(false)
+      }
+    } catch (err) {
+      console.error('LINE login error:', err)
+      setError('LINEログインに失敗しました。時間をおいて再度お試しください。')
+      setLineLoading(false)
     }
   }
 
@@ -116,6 +140,25 @@ export default function LoginPage() {
             >
               {loading ? 'ログイン中...' : 'ログイン'}
             </button>
+
+            {lineLoginEnabled && (
+              <div className="space-y-4">
+                <div className="flex items-center">
+                  <div className="flex-1 border-t border-gray-200" />
+                  <span className="px-4 text-sm text-gray-500">または</span>
+                  <div className="flex-1 border-t border-gray-200" />
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleLineLogin}
+                  disabled={lineLoading}
+                  className="w-full flex items-center justify-center gap-2 py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-500 hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {lineLoading ? 'LINEで処理中...' : 'LINEでログイン'}
+                </button>
+              </div>
+            )}
 
             <div className="text-center">
               <p className="text-sm text-gray-600">
