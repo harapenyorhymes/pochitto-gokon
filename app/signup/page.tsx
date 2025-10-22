@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -13,7 +13,9 @@ export default function SignUpPage() {
   const [loading, setLoading] = useState(false)
   const [success, setSuccess] = useState(false)
   const [currentAge, setCurrentAge] = useState<number | null>(null)
+  const [invitationCode, setInvitationCode] = useState<string>('')
   const router = useRouter()
+  const searchParams = useSearchParams()
 
   const {
     register,
@@ -38,6 +40,15 @@ export default function SignUpPage() {
 
   const watchedBirthDate = watch('birthDate')
   const watchedBio = watch('bio')
+
+  // URLパラメータから招待コードを取得
+  useEffect(() => {
+    const inviteCode = searchParams.get('inviteCode') || localStorage.getItem('pendingInvitationCode')
+    if (inviteCode) {
+      setInvitationCode(inviteCode)
+      localStorage.removeItem('pendingInvitationCode')
+    }
+  }, [searchParams])
 
   // 生年月日が変更されたときに年齢を計算
   useEffect(() => {
@@ -119,6 +130,27 @@ export default function SignUpPage() {
       const profileResult = await profileResponse.json()
       console.log('Profile saved successfully:', profileResult)
 
+      // 3. 招待コードがある場合は自動参加
+      if (invitationCode) {
+        try {
+          const joinResponse = await fetch('/api/invitations/join', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ invitationCode }),
+          })
+
+          if (joinResponse.ok) {
+            console.log('Successfully joined event with invitation code')
+          } else {
+            console.error('Failed to join event with invitation code')
+          }
+        } catch (err) {
+          console.error('Error joining with invitation code:', err)
+        }
+      }
+
       setSuccess(true)
       // 3秒後にダッシュボードに移動
       setTimeout(() => {
@@ -163,6 +195,14 @@ export default function SignUpPage() {
             <div className="text-center mb-8">
               <h1 className="text-3xl font-bold text-gray-900">ポチッと合コン</h1>
               <p className="mt-2 text-gray-600">新規会員登録とプロフィール作成</p>
+              {invitationCode && (
+                <div className="mt-4 inline-block bg-gradient-to-r from-pink-50 to-purple-50 rounded-xl px-6 py-3 border border-pink-200">
+                  <p className="text-xs text-gray-600 mb-1">招待コードで参加</p>
+                  <p className="text-lg font-bold bg-gradient-to-r from-pink-600 to-purple-600 bg-clip-text text-transparent tracking-wider">
+                    {invitationCode}
+                  </p>
+                </div>
+              )}
             </div>
 
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
