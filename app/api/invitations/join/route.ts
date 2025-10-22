@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createServerSupabaseClient } from '@/lib/supabase-server'
+import { createServerSupabaseClient, createServiceSupabaseClient } from '@/lib/supabase-server'
 
 export async function POST(request: NextRequest) {
   try {
+    // 認証チェック用
     const supabase = createServerSupabaseClient()
     const { data: { user } } = await supabase.auth.getUser()
 
@@ -111,11 +112,12 @@ export async function POST(request: NextRequest) {
       throw participantError
     }
 
-    // 招待コードの利用回数を更新
+    // 招待コードの利用回数を更新（service_roleを使用）
+    const serviceSupabase = createServiceSupabaseClient()
     const newUsesCount = invitation.current_uses + 1
     const newStatus = newUsesCount >= invitation.max_uses ? 'full' : 'active'
 
-    const { error: updateError } = await supabase
+    const { error: updateError } = await serviceSupabase
       .from('invitation_codes')
       .update({
         current_uses: newUsesCount,
@@ -191,6 +193,8 @@ export async function GET(request: NextRequest) {
 
     const event = Array.isArray(invitation.events) ? invitation.events[0] : invitation.events
     const organizer = Array.isArray(invitation.organizer) ? invitation.organizer[0] : invitation.organizer
+    const profiles = organizer?.profiles
+    const profile = Array.isArray(profiles) ? profiles[0] : profiles
 
     // バリデーション
     const isExpired = new Date(invitation.expires_at) < new Date()
@@ -209,8 +213,8 @@ export async function GET(request: NextRequest) {
           time: event.event_time,
           areaId: event.area_id
         } : null,
-        organizer: organizer?.profiles ? {
-          nickname: organizer.profiles.nickname
+        organizer: profile ? {
+          nickname: profile.nickname
         } : null
       }
     })
