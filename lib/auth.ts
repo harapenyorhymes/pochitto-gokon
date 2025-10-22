@@ -30,6 +30,19 @@ export const signInWithEmail = async (email: string, password: string) => {
   return { data, error }
 }
 
+// LINEログイン（OAuth）を開始
+export const signInWithLine = async () => {
+  const redirectTo = `${window.location.origin}/auth/callback?provider=line`
+  const { data, error } = await supabase.auth.signInWithOAuth({
+    provider: 'line',
+    options: {
+      scopes: 'profile openid email',
+      redirectTo
+    }
+  })
+  return { data, error }
+}
+
 // サインアウト
 export const signOut = async () => {
   const { error } = await supabase.auth.signOut()
