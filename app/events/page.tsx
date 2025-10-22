@@ -92,9 +92,9 @@ export default function EventsPage() {
 
   return (
     <AuthGuard requireAuth={true}>
-      <div className="min-h-screen bg-gradient-to-br from-pink-50 via-white to-purple-50 pb-24">
+      <div className="min-h-screen bg-gradient-to-br from-pink-50 via-white to-purple-50 pb-32">
         {/* Header */}
-        <header className="bg-white/90 backdrop-blur-xl border-b border-white/20 shadow-sm">
+        <header className="bg-white/90 backdrop-blur-xl border-b border-white/20 shadow-sm sticky top-0 z-40">
           <div className="max-w-sm mx-auto px-4">
             <div className="flex items-center justify-between h-14">
               <button
@@ -113,7 +113,7 @@ export default function EventsPage() {
           </div>
         </header>
 
-        <div className="max-w-sm mx-auto px-4 py-6">
+        <div className="max-w-sm mx-auto px-4 py-6 pb-8">
           {/* エラー表示 */}
           {error && (
             <div className="mb-6 bg-red-50/80 backdrop-blur-sm border border-red-200/50 text-red-600 px-4 py-3 rounded-2xl text-sm font-medium shadow-lg">
@@ -149,7 +149,7 @@ export default function EventsPage() {
             />
 
             {/* 登録ボタン */}
-            <div style={{paddingTop: '24px', padding: '0 16px'}}>
+            <div style={{paddingTop: '36px', paddingLeft: '16px', paddingRight: '16px', paddingBottom: '48px', marginBottom: '96px'}}>
               <button
                 onClick={handleSubmit}
                 disabled={isSubmitting || selections.length === 0}
