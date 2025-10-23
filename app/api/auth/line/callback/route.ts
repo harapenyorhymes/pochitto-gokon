@@ -38,24 +38,63 @@ export async function GET(request: NextRequest) {
     )
   }
 
-  // state の検証
-  const savedState = request.cookies.get('line_state')?.value
+  // データベースからstate検証（モバイルでCookieが保持されない問題に対応）
   console.log('LINE Callback - State from URL:', state)
-  console.log('LINE Callback - State from Cookie:', savedState)
-  console.log('LINE Callback - All cookies:', request.cookies.getAll().map(c => `${c.name}=${c.value}`).join(', '))
 
-  if (!state || state !== savedState) {
-    console.error('State mismatch or missing', {
-      receivedState: state,
-      savedState: savedState,
-      match: state === savedState
-    })
+  if (!state) {
+    console.error('State missing from callback')
     return NextResponse.redirect(
-      new URL('/login?error=invalid_state&error_description=' + encodeURIComponent('State verification failed. Please try again.'), requestUrl.origin)
+      new URL('/login?error=invalid_state&error_description=' + encodeURIComponent('State parameter is missing.'), requestUrl.origin)
     )
   }
 
-  console.log('State verification successful')
+  try {
+    const serviceSupabase = createServiceSupabaseClient()
+
+    // データベースからstateを検索
+    const { data: savedStateData, error: stateError } = await serviceSupabase
+      .from('line_oauth_states')
+      .select('*')
+      .eq('state', state)
+      .eq('used', false)
+      .maybeSingle()
+
+    if (stateError) {
+      console.error('Failed to verify state:', stateError)
+      return NextResponse.redirect(
+        new URL('/login?error=invalid_state&error_description=' + encodeURIComponent('State verification failed.'), requestUrl.origin)
+      )
+    }
+
+    if (!savedStateData) {
+      console.error('State not found or already used')
+      return NextResponse.redirect(
+        new URL('/login?error=invalid_state&error_description=' + encodeURIComponent('Invalid or expired state.'), requestUrl.origin)
+      )
+    }
+
+    // 有効期限チェック
+    const expiresAt = new Date(savedStateData.expires_at)
+    if (expiresAt < new Date()) {
+      console.error('State expired')
+      return NextResponse.redirect(
+        new URL('/login?error=invalid_state&error_description=' + encodeURIComponent('State has expired. Please try again.'), requestUrl.origin)
+      )
+    }
+
+    // stateを使用済みにマーク（リプレイアタック防止）
+    await serviceSupabase
+      .from('line_oauth_states')
+      .update({ used: true })
+      .eq('state', state)
+
+    console.log('State verification successful')
+  } catch (error) {
+    console.error('State verification error:', error)
+    return NextResponse.redirect(
+      new URL('/login?error=invalid_state&error_description=' + encodeURIComponent('State verification error.'), requestUrl.origin)
+    )
+  }
 
   if (!code) {
     return NextResponse.redirect(
@@ -98,10 +137,6 @@ export async function GET(request: NextRequest) {
     }
 
     const response = NextResponse.redirect(new URL(redirectPath, requestUrl.origin))
-
-    // Cookie をクリア
-    response.cookies.delete('line_state')
-    response.cookies.delete('line_nonce')
 
     return response
 
