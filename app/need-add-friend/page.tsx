@@ -5,8 +5,11 @@ import { AuthGuard } from '@/components/AuthGuard'
 import { signInWithLine } from '@/lib/auth'
 
 const DEFAULT_RETURN_TO = '/events'
+const RAW_FRIEND_ADD_URL = process.env.NEXT_PUBLIC_LINE_FRIEND_ADD_URL
 const FRIEND_ADD_URL =
-  process.env.NEXT_PUBLIC_LINE_FRIEND_ADD_URL || 'https://line.me/R/ti/p/@YOUR_OFFICIAL_ACCOUNT_ID'
+  RAW_FRIEND_ADD_URL && !RAW_FRIEND_ADD_URL.includes('YOUR_OFFICIAL_ACCOUNT_ID')
+    ? RAW_FRIEND_ADD_URL
+    : null
 
 export default function NeedAddFriendPage() {
   const [returnTo, setReturnTo] = useState<string>(DEFAULT_RETURN_TO)
@@ -22,6 +25,10 @@ export default function NeedAddFriendPage() {
   }, [])
 
   const handleOpenFriendPage = () => {
+    if (!FRIEND_ADD_URL) {
+      alert('LINE友だち追加用のURLが設定されていません。管理者にお問い合わせください。')
+      return
+    }
     window.open(FRIEND_ADD_URL, '_blank', 'noreferrer')
   }
 
@@ -47,10 +54,16 @@ export default function NeedAddFriendPage() {
             <button
               type="button"
               onClick={handleOpenFriendPage}
-              className="w-full rounded-xl bg-[#06C755] px-4 py-3 text-white font-semibold shadow hover:bg-[#05b04f] transition"
+              className="w-full rounded-xl bg-[#06C755] px-4 py-3 text-white font-semibold shadow hover:bg-[#05b04f] transition disabled:opacity-60"
+              disabled={!FRIEND_ADD_URL}
             >
               友だち追加ページを開く
             </button>
+            {!FRIEND_ADD_URL && (
+              <p className="text-xs text-red-500">
+                友だち追加URLが設定されていません。管理者にお問い合わせください。
+              </p>
+            )}
             <button
               type="button"
               onClick={handleRecheck}
@@ -62,7 +75,7 @@ export default function NeedAddFriendPage() {
 
           <div className="text-xs text-gray-500 bg-gray-50 border border-gray-200 rounded-xl p-4 text-left space-y-2">
             <p>・友だち追加後にブラウザへ戻り、「確認する」ボタンで再チェックしてください。</p>
-            <p>・うまく遷移しない場合はブラウザで再読み込みをお願いします。</p>
+            <p>・うまく遷移しない場合はブラウザを再読み込みしてください。</p>
           </div>
         </div>
       </div>

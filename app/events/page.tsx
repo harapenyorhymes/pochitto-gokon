@@ -45,8 +45,11 @@ export default function EventsPage() {
     friendFlag: false
   })
 
+  const rawFriendAddUrl = process.env.NEXT_PUBLIC_LINE_FRIEND_ADD_URL
   const friendAddUrl =
-    process.env.NEXT_PUBLIC_LINE_FRIEND_ADD_URL || 'https://line.me/R/ti/p/@YOUR_OFFICIAL_ACCOUNT_ID'
+    rawFriendAddUrl && !rawFriendAddUrl.includes('YOUR_OFFICIAL_ACCOUNT_ID')
+      ? rawFriendAddUrl
+      : null
 
   const loadLineStatus = useCallback(async () => {
     try {
@@ -86,6 +89,10 @@ export default function EventsPage() {
   }, [])
 
   const handleFriendAdd = useCallback(() => {
+    if (!friendAddUrl) {
+      alert('LINE公式アカウントの友だち追加URLが未設定です。管理者にご連絡ください。')
+      return
+    }
     window.open(friendAddUrl, '_blank', 'noreferrer')
   }, [friendAddUrl])
 
@@ -217,15 +224,25 @@ export default function EventsPage() {
           <div className="max-w-sm w-full bg-white rounded-2xl p-6 shadow-lg text-center space-y-4">
             <h2 className="text-xl font-semibold text-gray-900">友だち追加を確認してください</h2>
             <p className="text-sm text-gray-600">公式アカウントを友だち追加後、「友だち追加済みを確認する」から再チェックしてください。</p>
-            <div className="space-y-3">
+                        <div className="space-y-3">
               <button
+                type="button"
                 onClick={handleFriendAdd}
-                className="w-full rounded-xl bg-[#06C755] px-4 py-3 text-white font-semibold shadow hover:bg-[#05b04f] transition"
-              >友だち追加ページを開く</button>
+                className="w-full rounded-xl bg-[#06C755] px-4 py-3 text-white font-semibold shadow hover:bg-[#05b04f] transition disabled:opacity-60"
+                disabled={!friendAddUrl}
+              >
+                友だち追加ページを開く
+              </button>
+              {!friendAddUrl && (
+                <p className="text-xs text-red-500">LINE友だち追加URLが設定されていません。管理者にお問い合わせください。</p>
+              )}
               <button
+                type="button"
                 onClick={handleFriendCheck}
                 className="w-full rounded-xl border border-pink-500 px-4 py-3 text-pink-500 font-semibold hover:bg-pink-50 transition"
-              >友だち追加済みを確認する</button>
+              >
+                友だち追加済みを確認する
+              </button>
             </div>
           </div>
         </div>
