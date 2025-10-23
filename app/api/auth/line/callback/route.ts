@@ -67,15 +67,17 @@ export async function GET(request: NextRequest) {
     // Supabase セッションを設定してからリダイレクト
     const supabase = createServerSupabaseClient()
 
-    if (sessionToken) {
-      // セッションを設定
-      const { error: setSessionError } = await supabase.auth.setSession({
-        access_token: sessionToken.access_token,
-        refresh_token: sessionToken.refresh_token
+    if (sessionToken && sessionToken.hashed_token) {
+      // トークンハッシュを使ってセッションを検証
+      const { error: verifyError } = await supabase.auth.verifyOtp({
+        token_hash: sessionToken.hashed_token,
+        type: 'recovery'
       })
 
-      if (setSessionError) {
-        console.error('Failed to set session:', setSessionError)
+      if (verifyError) {
+        console.error('Failed to verify token:', verifyError)
+      } else {
+        console.log('Session verified successfully')
       }
     }
 
@@ -163,23 +165,39 @@ async function findOrCreateSupabaseUser(
     .maybeSingle()
 
   if (existingUser) {
-    // 既存ユーザーの場合、セッションを作成
-    console.log('Existing user found, creating session...')
+    // 既存ユーザーの場合、one-time tokenを生成
+    console.log('Existing user found, generating token...')
 
-    // Admin APIを使ってセッショントークンを生成
-    const { data: sessionData, error: sessionError } = await serviceSupabase.auth.admin.createSession({
-      user_id: existingUser.id
+    // Admin APIを使ってone-time tokenを生成
+    const { data: tokenData, error: tokenError } = await serviceSupabase.auth.admin.generateLink({
+      type: 'magiclink',
+      email: existingUser.email,
+      options: {
+        redirectTo: requestUrl.origin
+      }
     })
 
-    if (sessionError) {
-      console.error('Failed to create session:', sessionError)
-      throw new Error('Failed to create session')
+    if (tokenError || !tokenData) {
+      console.error('Failed to generate token:', tokenError)
+      throw new Error('Failed to create token')
+    }
+
+    // URLからhashed_tokenを抽出
+    const urlParams = new URL(tokenData.properties.action_link).searchParams
+    const hashedToken = urlParams.get('token_hash')
+
+    if (!hashedToken) {
+      console.error('No token_hash found in action link')
+      throw new Error('Failed to extract token')
     }
 
     return {
       user: existingUser,
       isNewUser: false,
-      sessionToken: sessionData.session
+      sessionToken: {
+        hashed_token: hashedToken,
+        type: 'recovery'
+      }
     }
   }
 
@@ -224,20 +242,36 @@ async function findOrCreateSupabaseUser(
     // ユーザーは作成されているのでエラーにしない
   }
 
-  // 新規ユーザー用のセッションを作成
-  const { data: sessionData, error: sessionError } = await serviceSupabase.auth.admin.createSession({
-    user_id: authData.user.id
+  // 新規ユーザー用のone-time tokenを生成
+  const { data: tokenData, error: tokenError } = await serviceSupabase.auth.admin.generateLink({
+    type: 'magiclink',
+    email,
+    options: {
+      redirectTo: requestUrl.origin
+    }
   })
 
-  if (sessionError) {
-    console.error('Failed to create session for new user:', sessionError)
-    throw new Error('Failed to create session')
+  if (tokenError || !tokenData) {
+    console.error('Failed to generate token for new user:', tokenError)
+    throw new Error('Failed to create token')
+  }
+
+  // URLからhashed_tokenを抽出
+  const urlParams = new URL(tokenData.properties.action_link).searchParams
+  const hashedToken = urlParams.get('token_hash')
+
+  if (!hashedToken) {
+    console.error('No token_hash found in action link for new user')
+    throw new Error('Failed to extract token')
   }
 
   return {
     user: authData.user,
     isNewUser: true,
-    sessionToken: sessionData.session
+    sessionToken: {
+      hashed_token: hashedToken,
+      type: 'recovery'
+    }
   }
 }
 
