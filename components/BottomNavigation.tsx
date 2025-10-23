@@ -4,12 +4,14 @@ import { useRouter, usePathname } from 'next/navigation'
 import {
   CalendarIcon,
   ChatBubbleLeftRightIcon,
-  UserIcon
+  UserIcon,
+  ClipboardDocumentListIcon
 } from '@heroicons/react/24/outline'
 import {
   CalendarIcon as CalendarIconSolid,
   ChatBubbleLeftRightIcon as ChatBubbleLeftRightIconSolid,
-  UserIcon as UserIconSolid
+  UserIcon as UserIconSolid,
+  ClipboardDocumentListIcon as ClipboardDocumentListIconSolid
 } from '@heroicons/react/24/solid'
 
 interface NavItem {
@@ -34,6 +36,13 @@ const navItems: NavItem[] = [
     path: '/events',
     icon: CalendarIcon,
     activeIcon: CalendarIconSolid
+  },
+  {
+    id: 'my-events',
+    label: '登録情報',
+    path: '/my-events',
+    icon: ClipboardDocumentListIcon,
+    activeIcon: ClipboardDocumentListIconSolid
   },
   {
     id: 'chat',

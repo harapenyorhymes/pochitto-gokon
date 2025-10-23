@@ -80,6 +80,30 @@ export default function EventsPage() {
         throw new Error(result.error || '日程の登録に失敗しました')
       }
 
+      // 友達参加の場合は招待コードを生成
+      if (participationType === 'group' && result.events && result.events.length > 0) {
+        const firstEventId = result.events[0].id
+
+        try {
+          const inviteResponse = await fetch('/api/invitations/create', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ eventId: firstEventId })
+          })
+
+          if (inviteResponse.ok) {
+            const inviteResult = await inviteResponse.json()
+            // 招待コード表示ページにリダイレクト
+            router.push(`/events/invitation/${inviteResult.invitationCode.code}`)
+            return
+          }
+        } catch (err) {
+          console.error('Failed to create invitation code:', err)
+        }
+      }
+
       // 成功時はプロフィール（ホーム）にリダイレクト
       router.push('/?success=events-registered')
     } catch (error) {
