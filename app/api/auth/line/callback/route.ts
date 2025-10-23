@@ -27,8 +27,14 @@ export async function GET(request: NextRequest) {
   // エラーチェック
   if (error) {
     console.error('LINE Login error:', error, errorDescription)
+    const errorUrl = `/login?error=${encodeURIComponent(error)}`
+    if (errorDescription) {
+      return NextResponse.redirect(
+        new URL(`${errorUrl}&error_description=${encodeURIComponent(errorDescription)}`, requestUrl.origin)
+      )
+    }
     return NextResponse.redirect(
-      new URL(`/login?error=${encodeURIComponent(error)}`, requestUrl.origin)
+      new URL(errorUrl, requestUrl.origin)
     )
   }
 

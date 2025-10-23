@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { signInWithEmail, signInWithLine } from '@/lib/auth'
@@ -14,6 +14,30 @@ export default function LoginPage() {
   const [error, setError] = useState<string | null>(null)
   const router = useRouter()
   const lineLoginEnabled = Boolean(process.env.NEXT_PUBLIC_LINE_LOGIN_CHANNEL_ID)
+
+  // URLパラメータからエラーを取得
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search)
+      const errorParam = params.get('error')
+      const errorDescription = params.get('error_description')
+
+      if (errorParam) {
+        const errorMessages: Record<string, string> = {
+          'invalid_state': 'セキュリティ検証に失敗しました。もう一度お試しください。',
+          'missing_code': '認証コードが見つかりません。',
+          'callback_failed': 'ログイン処理に失敗しました。',
+          'signup_failed': 'アカウント作成に失敗しました。',
+          'exchange_failed': '認証トークンの取得に失敗しました。',
+          'line_user_not_found': 'LINEユーザー情報の取得に失敗しました。'
+        }
+
+        const message = errorMessages[errorParam] || errorDescription || `エラーが発生しました: ${errorParam}`
+        setError(message)
+        console.error('Login error from URL:', errorParam, errorDescription)
+      }
+    }
+  }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
