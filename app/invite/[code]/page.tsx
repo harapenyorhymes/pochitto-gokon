@@ -16,10 +16,10 @@ interface InvitationInfo {
       date: string
       time: string
       areaId: string
-    }
+    } | null
     organizer: {
       nickname: string
-    }
+    } | null
   }
   error?: string
 }
@@ -106,7 +106,7 @@ export default function InvitePage() {
     )
   }
 
-  if (!invitationInfo || !invitationInfo.valid) {
+  if (!invitationInfo || !invitationInfo.valid || !invitationInfo.invitation?.event || !invitationInfo.invitation?.organizer) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-pink-50 via-white to-purple-50 flex items-center justify-center p-4">
         <div className="max-w-md w-full bg-white rounded-2xl shadow-xl p-8 text-center">
@@ -133,7 +133,11 @@ export default function InvitePage() {
   }
 
   const { invitation } = invitationInfo
-  const eventDate = new Date(invitation!.event.date).toLocaleDateString('ja-JP', {
+  // null チェック後なので event と organizer は確実に存在する
+  const event = invitation.event!
+  const organizer = invitation.organizer!
+
+  const eventDate = new Date(event.date).toLocaleDateString('ja-JP', {
     year: 'numeric',
     month: 'long',
     day: 'numeric'
@@ -154,7 +158,7 @@ export default function InvitePage() {
             合コンへの招待
           </h1>
           <p className="text-center text-gray-600 mb-6">
-            <span className="font-bold text-pink-600">{invitation!.organizer.nickname}</span>さんから招待されています
+            <span className="font-bold text-pink-600">{organizer.nickname}</span>さんから招待されています
           </p>
 
           {/* イベント情報 */}
@@ -164,7 +168,7 @@ export default function InvitePage() {
               <div>
                 <p className="text-xs text-gray-600">日程</p>
                 <p className="font-bold text-gray-900">{eventDate}</p>
-                <p className="text-sm text-gray-700">{invitation!.event.time}</p>
+                <p className="text-sm text-gray-700">{event.time}</p>
               </div>
             </div>
             <div className="flex items-center">
@@ -178,7 +182,7 @@ export default function InvitePage() {
               <span className="text-2xl mr-3">👥</span>
               <div>
                 <p className="text-xs text-gray-600">残り参加枠</p>
-                <p className="font-bold text-gray-900">{invitation!.availableSlots}人</p>
+                <p className="font-bold text-gray-900">{invitation.availableSlots}人</p>
               </div>
             </div>
           </div>
@@ -187,7 +191,7 @@ export default function InvitePage() {
           <div className="bg-gray-50 rounded-xl p-4 mb-6 text-center">
             <p className="text-xs text-gray-600 mb-1">招待コード</p>
             <p className="text-2xl font-bold tracking-wider bg-gradient-to-r from-pink-600 to-purple-600 bg-clip-text text-transparent">
-              {invitation!.code}
+              {invitation.code}
             </p>
           </div>
 

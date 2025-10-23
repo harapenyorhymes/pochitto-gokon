@@ -4,8 +4,8 @@ import { createServerSupabaseClient, createServiceSupabaseClient } from '@/lib/s
 export async function POST(request: NextRequest) {
   try {
     // 認証チェック用
-    const supabase = createServerSupabaseClient()
-    const { data: { user } } = await supabase.auth.getUser()
+    const authSupabase = createServerSupabaseClient()
+    const { data: { user } } = await authSupabase.auth.getUser()
 
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -18,6 +18,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invitation code is required' }, { status: 400 })
     }
 
+    // service_role を使用してRLSをバイパス
+    const supabase = createServiceSupabaseClient()
+
     // 招待コードを検証
     const { data: invitation, error: invitationError } = await supabase
       .from('invitation_codes')
@@ -29,15 +32,7 @@ export async function POST(request: NextRequest) {
         max_uses,
         current_uses,
         expires_at,
-        status,
-        events (
-          id,
-          event_date,
-          event_time,
-          area_id,
-          participation_type,
-          status
-        )
+        status
       `)
       .eq('code', invitationCode.toUpperCase())
       .single()
@@ -78,15 +73,20 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: '自分の招待コードは使用できません' }, { status: 400 })
     }
 
-    // イベント情報の取得
-    const event = Array.isArray(invitation.events) ? invitation.events[0] : invitation.events
+    // イベント情報を取得
+    const { data: event, error: eventError } = await supabase
+      .from('events')
+      .select('id, event_date, event_time, area_id, participation_type, status')
+      .eq('id', invitation.event_id)
+      .single()
 
-    if (!event) {
+    if (eventError || !event) {
+      console.error('Event fetch error:', eventError)
       return NextResponse.json({ error: 'イベント情報が見つかりません' }, { status: 404 })
     }
 
     // 既に参加しているかチェック
-    const { data: existingParticipant, error: checkError } = await supabase
+    const { data: existingParticipant } = await supabase
       .from('event_participants')
       .select('id')
       .eq('event_id', event.id)
@@ -159,7 +159,8 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Invitation code is required' }, { status: 400 })
     }
 
-    const supabase = createServerSupabaseClient()
+    // service_role を使用してRLSをバイパス
+    const supabase = createServiceSupabaseClient()
 
     // 招待コードを検証
     const { data: invitation, error: invitationError } = await supabase
@@ -171,18 +172,8 @@ export async function GET(request: NextRequest) {
         current_uses,
         expires_at,
         status,
-        events (
-          id,
-          event_date,
-          event_time,
-          area_id,
-          participation_type
-        ),
-        organizer:organizer_id (
-          profiles (
-            nickname
-          )
-        )
+        organizer_id,
+        event_id
       `)
       .eq('code', code.toUpperCase())
       .single()
@@ -191,10 +182,27 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: '招待コードが見つかりません', valid: false }, { status: 404 })
     }
 
-    const event = Array.isArray(invitation.events) ? invitation.events[0] : invitation.events
-    const organizer = Array.isArray(invitation.organizer) ? invitation.organizer[0] : invitation.organizer
-    const profiles = organizer?.profiles
-    const profile = Array.isArray(profiles) ? profiles[0] : profiles
+    // イベント情報を取得
+    const { data: event, error: eventError } = await supabase
+      .from('events')
+      .select('id, event_date, event_time, area_id, participation_type')
+      .eq('id', invitation.event_id)
+      .single()
+
+    if (eventError) {
+      console.error('Event fetch error:', eventError)
+    }
+
+    // 主催者のプロフィール情報を取得
+    const { data: organizerProfile, error: organizerError } = await supabase
+      .from('profiles')
+      .select('nickname')
+      .eq('id', invitation.organizer_id)
+      .single()
+
+    if (organizerError) {
+      console.error('Organizer fetch error:', organizerError)
+    }
 
     // バリデーション
     const isExpired = new Date(invitation.expires_at) < new Date()
@@ -213,8 +221,8 @@ export async function GET(request: NextRequest) {
           time: event.event_time,
           areaId: event.area_id
         } : null,
-        organizer: profile ? {
-          nickname: profile.nickname
+        organizer: organizerProfile ? {
+          nickname: organizerProfile.nickname
         } : null
       }
     })
