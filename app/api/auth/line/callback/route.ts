@@ -142,8 +142,16 @@ export async function GET(request: NextRequest) {
 
   } catch (err) {
     console.error('LINE callback error:', err)
+    console.error('Error details:', {
+      message: err instanceof Error ? err.message : 'Unknown error',
+      stack: err instanceof Error ? err.stack : undefined,
+      code: requestUrl.searchParams.get('code'),
+      state: requestUrl.searchParams.get('state')
+    })
+
+    const errorMessage = err instanceof Error ? err.message : 'Unknown error'
     return NextResponse.redirect(
-      new URL('/login?error=callback_failed', requestUrl.origin)
+      new URL('/login?error=callback_failed&error_description=' + encodeURIComponent(errorMessage), requestUrl.origin)
     )
   }
 }
@@ -157,6 +165,8 @@ async function exchangeCodeForToken(code: string, requestUrl: URL): Promise<Line
   const redirectUri = `${baseUrl}/api/auth/line/callback`
 
   console.log('Token Exchange - Channel ID:', channelId)
+  console.log('Token Exchange - Channel Secret exists:', !!channelSecret)
+  console.log('Token Exchange - Channel Secret length:', channelSecret?.length)
   console.log('Token Exchange - Redirect URI:', redirectUri)
 
   const params = new URLSearchParams({
