@@ -57,12 +57,27 @@ export async function GET(request: NextRequest) {
     console.log('LINE Profile:', profile)
 
     // Supabase でユーザーを作成/取得してセッションを確立
-    const { user, isNewUser } = await findOrCreateSupabaseUser(profile, tokenResponse, requestUrl)
+    const { user, isNewUser, sessionToken } = await findOrCreateSupabaseUser(profile, tokenResponse, requestUrl)
 
     console.log('User created/found:', user.id, 'isNewUser:', isNewUser)
 
     // プロフィール確認してリダイレクト
     const redirectPath = await determinePostLoginRedirect(user.id, isNewUser)
+
+    // Supabase セッションを設定してからリダイレクト
+    const supabase = createServerSupabaseClient()
+
+    if (sessionToken) {
+      // セッションを設定
+      const { error: setSessionError } = await supabase.auth.setSession({
+        access_token: sessionToken.access_token,
+        refresh_token: sessionToken.refresh_token
+      })
+
+      if (setSessionError) {
+        console.error('Failed to set session:', setSessionError)
+      }
+    }
 
     const response = NextResponse.redirect(new URL(redirectPath, requestUrl.origin))
 
@@ -136,7 +151,7 @@ async function findOrCreateSupabaseUser(
   profile: LineProfile,
   tokenResponse: LineTokenResponse,
   requestUrl: URL
-): Promise<{ user: any; isNewUser: boolean }> {
+): Promise<{ user: any; isNewUser: boolean; sessionToken?: any }> {
   const serviceSupabase = createServiceSupabaseClient()
   const email = `line_${profile.userId}@line.local`
 
@@ -151,18 +166,21 @@ async function findOrCreateSupabaseUser(
     // 既存ユーザーの場合、セッションを作成
     console.log('Existing user found, creating session...')
 
-    // Admin APIを使ってセッションを作成
-    const { data: sessionData, error: sessionError } = await serviceSupabase.auth.admin.generateLink({
-      type: 'magiclink',
-      email: existingUser.email
+    // Admin APIを使ってセッショントークンを生成
+    const { data: sessionData, error: sessionError } = await serviceSupabase.auth.admin.createSession({
+      user_id: existingUser.id
     })
 
     if (sessionError) {
-      console.error('Failed to generate session:', sessionError)
+      console.error('Failed to create session:', sessionError)
       throw new Error('Failed to create session')
     }
 
-    return { user: existingUser, isNewUser: false }
+    return {
+      user: existingUser,
+      isNewUser: false,
+      sessionToken: sessionData.session
+    }
   }
 
   // 新規ユーザーを作成
@@ -206,7 +224,21 @@ async function findOrCreateSupabaseUser(
     // ユーザーは作成されているのでエラーにしない
   }
 
-  return { user: authData.user, isNewUser: true }
+  // 新規ユーザー用のセッションを作成
+  const { data: sessionData, error: sessionError } = await serviceSupabase.auth.admin.createSession({
+    user_id: authData.user.id
+  })
+
+  if (sessionError) {
+    console.error('Failed to create session for new user:', sessionError)
+    throw new Error('Failed to create session')
+  }
+
+  return {
+    user: authData.user,
+    isNewUser: true,
+    sessionToken: sessionData.session
+  }
 }
 
 async function determinePostLoginRedirect(userId: string, isNewUser: boolean): Promise<string> {
