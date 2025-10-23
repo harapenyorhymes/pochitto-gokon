@@ -29,22 +29,47 @@ export async function GET(request: NextRequest) {
   // Persist OAuth state/nonce via Supabase for mobile environments
   try {
     const supabase = createServiceSupabaseClient()
+    const payload: Record<string, any> = {
+      state,
+      nonce,
+      used: false,
+      expires_at: new Date(Date.now() + 10 * 60 * 1000).toISOString() // Expires after 10 minutes
+    }
+
+    if (returnTo) {
+      payload.return_to = returnTo
+    }
+
     const { error: insertError } = await supabase
       .from('line_oauth_states')
-      .insert({
-        state,
-        nonce,
-        return_to: returnTo,
-        used: false,
-        expires_at: new Date(Date.now() + 10 * 60 * 1000).toISOString() // Expires after 10 minutes
-      })
+      .insert(payload)
 
     if (insertError) {
-      console.error('Failed to save state to database:', insertError)
-      return NextResponse.json(
-        { error: 'Failed to initialize login session' },
-        { status: 500 }
-      )
+      if (insertError.code === '42703') {
+        console.warn('line_oauth_states.return_to column missing, retrying without return_to')
+        const { error: fallbackError } = await supabase
+          .from('line_oauth_states')
+          .insert({
+            state,
+            nonce,
+            used: false,
+            expires_at: new Date(Date.now() + 10 * 60 * 1000).toISOString()
+          })
+
+        if (fallbackError) {
+          console.error('Failed to save state to database (fallback):', fallbackError)
+          return NextResponse.json(
+            { error: 'Failed to initialize login session' },
+            { status: 500 }
+          )
+        }
+      } else {
+        console.error('Failed to save state to database:', insertError)
+        return NextResponse.json(
+          { error: 'Failed to initialize login session' },
+          { status: 500 }
+        )
+      }
     }
 
     console.log('LINE Login - State saved to database:', state)
