@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { useForm } from 'react-hook-form'
@@ -9,7 +9,7 @@ import { signUpWithEmail } from '@/lib/auth'
 import { AuthGuard } from '@/components/AuthGuard'
 import { signupWithProfileSchema, SignupWithProfileFormData, calculateAge } from '@/lib/validations/profile'
 
-export default function SignUpPage() {
+function SignUpForm() {
   const [loading, setLoading] = useState(false)
   const [success, setSuccess] = useState(false)
   const [currentAge, setCurrentAge] = useState<number | null>(null)
@@ -382,5 +382,20 @@ export default function SignUpPage() {
         </div>
       </div>
     </AuthGuard>
+  )
+}
+
+export default function SignUpPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-pink-600 border-r-transparent"></div>
+          <p className="mt-2 text-gray-600">読み込み中...</p>
+        </div>
+      </div>
+    }>
+      <SignUpForm />
+    </Suspense>
   )
 }
