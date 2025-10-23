@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { AuthGuard } from '@/components/AuthGuard'
 import GridDateTimeSelector from '@/components/GridDateTimeSelector'
@@ -8,6 +8,7 @@ import ParticipationSelector, { ParticipationType } from '@/components/Participa
 import AreaSelector from '@/components/AreaSelector'
 import BottomNavigation from '@/components/BottomNavigation'
 import { TIME_SLOTS, AREA_IDS, MAX_PARTICIPANTS } from '@/constants/timeSlots'
+import { signInWithLine } from '@/lib/auth'
 
 // エリアの定義（現在は名古屋栄のみ）
 const AVAILABLE_AREAS = [
@@ -18,6 +19,12 @@ const AVAILABLE_AREAS = [
     city: '名古屋市'
   }
 ]
+
+type LineStatus = {
+  loading: boolean
+  lineUserId: string | null
+  friendFlag: boolean
+}
 
 export interface EventData {
   date: string
@@ -32,6 +39,59 @@ export default function EventsPage() {
   const [selectedAreaId, setSelectedAreaId] = useState<string | null>(AREA_IDS.NAGOYA_SAKAE)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [lineStatus, setLineStatus] = useState<LineStatus>({
+    loading: true,
+    lineUserId: null,
+    friendFlag: false
+  })
+
+  const friendAddUrl =
+    process.env.NEXT_PUBLIC_LINE_FRIEND_ADD_URL || 'https://line.me/R/ti/p/@YOUR_OFFICIAL_ACCOUNT_ID'
+
+  const loadLineStatus = useCallback(async () => {
+    try {
+      setLineStatus(prev => ({ ...prev, loading: true }))
+      const response = await fetch('/api/line/status', { cache: 'no-store' })
+
+      if (response.status === 401) {
+        router.push(`/login?returnTo=${encodeURIComponent('/events')}`)
+        return
+      }
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch LINE status')
+      }
+
+      const data = await response.json()
+      setLineStatus({
+        loading: false,
+        lineUserId: data.lineUserId ?? null,
+        friendFlag: Boolean(data.friendFlag)
+      })
+    } catch (err) {
+      console.error('Failed to load LINE status', err)
+      setLineStatus(prev => ({ ...prev, loading: false }))
+    }
+  }, [router])
+
+  useEffect(() => {
+    loadLineStatus()
+  }, [loadLineStatus])
+
+  const requireLineLink = !lineStatus.loading && !lineStatus.lineUserId
+  const requireFriendLink = !lineStatus.loading && !!lineStatus.lineUserId && !lineStatus.friendFlag
+
+  const handleLineConnect = useCallback(() => {
+    signInWithLine('/events')
+  }, [])
+
+  const handleFriendAdd = useCallback(() => {
+    window.open(friendAddUrl, '_blank', 'noreferrer')
+  }, [friendAddUrl])
+
+  const handleFriendCheck = useCallback(() => {
+    signInWithLine('/events')
+  }, [])
 
   const handleSelectionsChange = useCallback((newSelections: { date: string; timeSlotId: string }[]) => {
     setSelections(newSelections)
@@ -39,6 +99,21 @@ export default function EventsPage() {
   }, [])
 
   const handleSubmit = useCallback(async () => {
+    if (lineStatus.loading) {
+      setError('LINE連携の確認が完了していません。少し待ってから再度お試しください。')
+      return
+    }
+
+    if (!lineStatus.lineUserId) {
+      setError('日程登録を行う前にLINE連携を完了してください。')
+      return
+    }
+
+    if (!lineStatus.friendFlag) {
+      setError('公式アカウントを友だち追加してから日程登録を行ってください。')
+      return
+    }
+
     if (selections.length === 0) {
       setError('日程を選択してください')
       return
@@ -111,11 +186,50 @@ export default function EventsPage() {
     } finally {
       setIsSubmitting(false)
     }
-  }, [selections, participationType, selectedAreaId, router])
+  }, [lineStatus, selections, participationType, selectedAreaId, router])
 
+
+  const isSubmitDisabled = isSubmitting || selections.length === 0 || requireLineLink || requireFriendLink
 
   return (
     <AuthGuard requireAuth={true}>
+      {lineStatus.loading && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-white/80 backdrop-blur-sm">
+          <div className="rounded-2xl bg-white px-6 py-4 shadow text-gray-700 text-sm">LINE連携状態を確認しています...</div>
+        </div>
+      )}
+      {!lineStatus.loading && requireLineLink && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <div className="max-w-sm w-full bg-white rounded-2xl p-6 shadow-lg text-center space-y-4">
+            <h2 className="text-xl font-semibold text-gray-900">LINE連携が必要です</h2>
+            <p className="text-sm text-gray-600">日程登録を進めるために、LINEログインと公式アカウントの友だち追加を完了してください。</p>
+            <button
+              onClick={handleLineConnect}
+              className="w-full rounded-xl bg-green-500 px-4 py-3 text-white font-semibold shadow hover:bg-green-600 transition"
+            >
+              LINEで連携する
+            </button>
+          </div>
+        </div>
+      )}
+      {!lineStatus.loading && !requireLineLink && requireFriendLink && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <div className="max-w-sm w-full bg-white rounded-2xl p-6 shadow-lg text-center space-y-4">
+            <h2 className="text-xl font-semibold text-gray-900">友だち追加を確認してください</h2>
+            <p className="text-sm text-gray-600">公式アカウントを友だち追加後、「友だち追加済みを確認する」から再チェックしてください。</p>
+            <div className="space-y-3">
+              <button
+                onClick={handleFriendAdd}
+                className="w-full rounded-xl bg-[#06C755] px-4 py-3 text-white font-semibold shadow hover:bg-[#05b04f] transition"
+              >友だち追加ページを開く</button>
+              <button
+                onClick={handleFriendCheck}
+                className="w-full rounded-xl border border-pink-500 px-4 py-3 text-pink-500 font-semibold hover:bg-pink-50 transition"
+              >友だち追加済みを確認する</button>
+            </div>
+          </div>
+        </div>
+      )}
       <div className="min-h-screen bg-gradient-to-br from-pink-50 via-white to-purple-50 pb-32">
         {/* Header */}
         <header className="bg-white/90 backdrop-blur-xl border-b border-white/20 shadow-sm sticky top-0 z-40">
@@ -176,11 +290,11 @@ export default function EventsPage() {
             <div style={{paddingTop: '36px', paddingLeft: '16px', paddingRight: '16px', paddingBottom: '48px', marginBottom: '96px'}}>
               <button
                 onClick={handleSubmit}
-                disabled={isSubmitting || selections.length === 0}
+                disabled={isSubmitDisabled}
                 style={{
                   width: '100%',
                   padding: '16px',
-                  background: isSubmitting || selections.length === 0
+                  background: isSubmitDisabled
                     ? 'linear-gradient(to right, #d1d5db, #9ca3af)'
                     : 'linear-gradient(135deg, #ec4899, #8b5cf6, #06b6d4)',
                   color: 'white',
@@ -188,35 +302,35 @@ export default function EventsPage() {
                   fontWeight: 'bold',
                   fontSize: '18px',
                   border: 'none',
-                  cursor: isSubmitting || selections.length === 0 ? 'not-allowed' : 'pointer',
-                  boxShadow: isSubmitting || selections.length === 0
+                  cursor: isSubmitDisabled ? 'not-allowed' : 'pointer',
+                  boxShadow: isSubmitDisabled
                     ? 'none'
                     : '0 10px 25px -3px rgba(236, 72, 153, 0.3), 0 4px 6px -2px rgba(236, 72, 153, 0.05)',
                   transition: 'all 0.3s ease',
                   transform: 'scale(1)',
-                  opacity: isSubmitting || selections.length === 0 ? 0.5 : 1,
+                  opacity: isSubmitDisabled ? 0.5 : 1,
                   position: 'relative',
                   overflow: 'hidden'
                 }}
                 onMouseEnter={(e) => {
-                  if (!(isSubmitting || selections.length === 0)) {
+                  if (!isSubmitDisabled) {
                     e.currentTarget.style.transform = 'scale(1.02)'
                     e.currentTarget.style.boxShadow = '0 20px 40px -3px rgba(236, 72, 153, 0.4), 0 4px 6px -2px rgba(236, 72, 153, 0.05)'
                   }
                 }}
                 onMouseLeave={(e) => {
-                  if (!(isSubmitting || selections.length === 0)) {
+                  if (!isSubmitDisabled) {
                     e.currentTarget.style.transform = 'scale(1)'
                     e.currentTarget.style.boxShadow = '0 10px 25px -3px rgba(236, 72, 153, 0.3), 0 4px 6px -2px rgba(236, 72, 153, 0.05)'
                   }
                 }}
                 onMouseDown={(e) => {
-                  if (!(isSubmitting || selections.length === 0)) {
+                  if (!isSubmitDisabled) {
                     e.currentTarget.style.transform = 'scale(0.98)'
                   }
                 }}
                 onMouseUp={(e) => {
-                  if (!(isSubmitting || selections.length === 0)) {
+                  if (!isSubmitDisabled) {
                     e.currentTarget.style.transform = 'scale(1.02)'
                   }
                 }}

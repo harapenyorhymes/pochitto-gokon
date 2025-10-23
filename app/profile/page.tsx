@@ -1,12 +1,13 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { AuthGuard } from '@/components/AuthGuard'
+import { signInWithLine } from '@/lib/auth'
 import { useAuth } from '@/contexts/AuthContext'
 
-interface Profile {
+type Profile = {
   id: string
   nickname: string
   age: number
@@ -17,24 +18,46 @@ interface Profile {
   updated_at: string
 }
 
+type LineStatus = {
+  lineUserId: string | null
+  friendFlag: boolean
+  lineFriendCheckedAt: string | null
+  lineLinkedAt: string | null
+  level: number
+}
+
+type PenaltyLog = {
+  id: string
+  penalty_type: string
+  points_delta: number
+  detail: string | null
+  processed_at: string
+  match_id: string | null
+}
+
 export default function ProfilePage() {
+  const router = useRouter()
+  const { user } = useAuth()
+
   const [profile, setProfile] = useState<Profile | null>(null)
+  const [lineStatus, setLineStatus] = useState<LineStatus | null>(null)
+  const [penaltyLogs, setPenaltyLogs] = useState<PenaltyLog[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const { user } = useAuth()
-  const router = useRouter()
 
   useEffect(() => {
     const fetchProfile = async () => {
       try {
-        const response = await fetch('/api/profile')
+        const response = await fetch('/api/profile', { cache: 'no-store' })
         const result = await response.json()
 
-        if (!response.ok) {
+        if (!response.ok || result.success === false) {
           throw new Error(result.error || 'プロフィールの取得に失敗しました')
         }
 
         setProfile(result.data)
+        setLineStatus(result.lineStatus ?? null)
+        setPenaltyLogs(Array.isArray(result.penaltyLogs) ? result.penaltyLogs : [])
       } catch (err) {
         setError(err instanceof Error ? err.message : 'エラーが発生しました')
       } finally {
@@ -47,11 +70,29 @@ export default function ProfilePage() {
     }
   }, [user])
 
+  const formatDateTime = (value: string | null | undefined) => {
+    if (!value) return '-'
+    try {
+      return new Date(value).toLocaleString('ja-JP')
+    } catch {
+      return value
+    }
+  }
+
+  const handleLineReconnect = () => {
+    signInWithLine('/profile')
+  }
+
+  const lineStatusDescription = useMemo(() => {
+    if (!lineStatus) return '未連携'
+    return lineStatus.friendFlag ? '友だち追加済み' : '友だち未追加'
+  }, [lineStatus])
+
   if (loading) {
     return (
-      <AuthGuard requireAuth={true}>
+      <AuthGuard requireAuth>
         <div className="min-h-screen flex items-center justify-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-pink-600"></div>
+          <div className="inline-block h-10 w-10 animate-spin rounded-full border-4 border-pink-500 border-r-transparent" />
         </div>
       </AuthGuard>
     )
@@ -59,15 +100,16 @@ export default function ProfilePage() {
 
   if (error) {
     return (
-      <AuthGuard requireAuth={true}>
-        <div className="min-h-screen flex items-center justify-center">
-          <div className="text-center">
-            <p className="text-red-600 mb-4">{error}</p>
+      <AuthGuard requireAuth>
+        <div className="min-h-screen flex items-center justify-center px-6">
+          <div className="max-w-sm w-full rounded-2xl bg-white shadow p-6 text-center space-y-4">
+            <p className="text-sm text-red-600">{error}</p>
             <button
+              type="button"
               onClick={() => window.location.reload()}
-              className="bg-pink-600 hover:bg-pink-700 text-white px-4 py-2 rounded-md"
+              className="w-full rounded-md bg-pink-600 px-4 py-2 text-white font-medium hover:bg-pink-700"
             >
-              再試行
+              再読み込み
             </button>
           </div>
         </div>
@@ -77,19 +119,17 @@ export default function ProfilePage() {
 
   if (!profile) {
     return (
-      <AuthGuard requireAuth={true}>
+      <AuthGuard requireAuth>
         <div className="min-h-screen bg-gray-50 py-12">
           <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="bg-white rounded-lg shadow-sm p-8 text-center">
-              <h1 className="text-2xl font-bold text-gray-900 mb-4">
-                プロフィールがまだ作成されていません
-              </h1>
-              <p className="text-gray-600 mb-8">
-                素敵な出会いのために、まずはプロフィールを作成しましょう
+            <div className="bg-white rounded-3xl shadow-sm p-10 text-center space-y-4">
+              <h1 className="text-2xl font-bold text-gray-900">プロフィールが未作成です</h1>
+              <p className="text-sm text-gray-600">
+                素敵な出会いのために、まずはプロフィールを登録しましょう。
               </p>
               <Link
                 href="/profile/create"
-                className="inline-block bg-pink-600 hover:bg-pink-700 text-white font-medium py-3 px-6 rounded-md"
+                className="inline-flex items-center justify-center rounded-md bg-pink-600 px-6 py-3 text-white font-medium hover:bg-pink-700"
               >
                 プロフィールを作成
               </Link>
@@ -101,71 +141,122 @@ export default function ProfilePage() {
   }
 
   return (
-    <AuthGuard requireAuth={true}>
+    <AuthGuard requireAuth>
       <div className="min-h-screen bg-gray-50 py-12">
         <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="bg-white rounded-lg shadow-sm p-8">
-            <div className="flex justify-between items-start mb-8">
-              <h1 className="text-3xl font-bold text-gray-900">プロフィール</h1>
+          <div className="bg-white rounded-3xl shadow-sm p-10 space-y-10">
+            <header className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+              <div>
+                <h1 className="text-3xl font-bold text-gray-900">プロフィール</h1>
+                <p className="mt-1 text-sm text-gray-500">
+                  最終更新: {formatDateTime(profile.updated_at)}
+                </p>
+              </div>
               <Link
                 href="/profile/edit"
-                className="bg-pink-600 hover:bg-pink-700 text-white px-4 py-2 rounded-md text-sm font-medium"
+                className="inline-flex items-center justify-center rounded-md bg-pink-600 px-4 py-2 text-sm font-medium text-white hover:bg-pink-700"
               >
-                編集
+                編集する
               </Link>
-            </div>
+            </header>
 
-            <div className="space-y-6">
-              {/* ニックネーム */}
+            <section className="grid gap-6 sm:grid-cols-2">
+              <div className="rounded-xl border border-pink-100 bg-pink-50 px-5 py-4">
+                <h2 className="text-xs font-semibold text-pink-600 uppercase tracking-wide">
+                  現在のレベル
+                </h2>
+                <p className="mt-2 text-3xl font-bold text-pink-700">
+                  {lineStatus?.level ?? 0}
+                </p>
+              </div>
+              <div className="rounded-xl border border-gray-200 bg-gray-50 px-5 py-4 space-y-1">
+                <h2 className="text-xs font-semibold text-gray-600 uppercase tracking-wide">
+                  LINE連携
+                </h2>
+                <p className="text-lg font-medium text-gray-900">{lineStatusDescription}</p>
+                <p className="text-sm text-gray-500">
+                  LINE ID: {lineStatus?.lineUserId ?? '未連携'}
+                </p>
+                <p className="text-xs text-gray-400">
+                  最終チェック: {formatDateTime(lineStatus?.lineFriendCheckedAt)}
+                </p>
+                <button
+                  type="button"
+                  onClick={handleLineReconnect}
+                  className="inline-flex items-center justify-center rounded-md border border-pink-400 px-3 py-1.5 text-xs font-medium text-pink-500 hover:bg-pink-50"
+                >
+                  LINE連携を更新
+                </button>
+              </div>
+            </section>
+
+            <section className="space-y-6">
               <div>
-                <h3 className="text-sm font-medium text-gray-500 uppercase tracking-wide">
+                <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide">
                   ニックネーム
                 </h3>
-                <p className="mt-1 text-lg text-gray-900">{profile.nickname}</p>
+                <p className="mt-2 text-lg text-gray-900">{profile.nickname}</p>
               </div>
 
-              {/* 年齢・性別 */}
               <div className="grid grid-cols-2 gap-6">
                 <div>
-                  <h3 className="text-sm font-medium text-gray-500 uppercase tracking-wide">
+                  <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide">
                     年齢
                   </h3>
-                  <p className="mt-1 text-lg text-gray-900">{profile.age}歳</p>
+                  <p className="mt-2 text-lg text-gray-900">{profile.age}歳</p>
                 </div>
                 <div>
-                  <h3 className="text-sm font-medium text-gray-500 uppercase tracking-wide">
+                  <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide">
                     性別
                   </h3>
-                  <p className="mt-1 text-lg text-gray-900">
+                  <p className="mt-2 text-lg text-gray-900">
                     {profile.gender === 'male' ? '男性' : '女性'}
                   </p>
                 </div>
               </div>
 
-              {/* 自己紹介 */}
               <div>
-                <h3 className="text-sm font-medium text-gray-500 uppercase tracking-wide">
+                <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide">
                   自己紹介
                 </h3>
-                <p className="mt-1 text-gray-900 whitespace-pre-wrap leading-relaxed">
+                <p className="mt-2 whitespace-pre-wrap leading-relaxed text-gray-900">
                   {profile.bio}
                 </p>
               </div>
+            </section>
 
-              {/* 更新日時 */}
-              <div className="pt-6 border-t border-gray-200">
-                <p className="text-sm text-gray-500">
-                  最終更新: {new Date(profile.updated_at).toLocaleDateString('ja-JP')}
-                </p>
-              </div>
-            </div>
+            <section>
+              <h2 className="text-xl font-semibold text-gray-900 mb-4">減点履歴</h2>
+              {penaltyLogs.length === 0 ? (
+                <p className="text-sm text-gray-500">減点履歴はありません。</p>
+              ) : (
+                <div className="space-y-3">
+                  {penaltyLogs.map((log) => (
+                    <div
+                      key={log.id}
+                      className="rounded-lg border border-gray-200 bg-gray-50 px-4 py-3"
+                    >
+                      <p className="text-sm text-gray-500">
+                        {formatDateTime(log.processed_at)}
+                      </p>
+                      <p className="mt-1 text-gray-900">
+                        {log.detail || '詳細は設定されていません'}
+                      </p>
+                      <p className="mt-1 text-sm font-medium text-gray-700">
+                        変動: {log.points_delta}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </section>
 
-            <div className="mt-8 flex justify-center">
+            <div className="flex justify-center">
               <Link
-                href="/dashboard"
-                className="text-pink-600 hover:text-pink-500 font-medium"
+                href="/"
+                className="text-pink-600 hover:text-pink-500 text-sm font-medium"
               >
-                ← ダッシュボードに戻る
+                ホームに戻る
               </Link>
             </div>
           </div>
