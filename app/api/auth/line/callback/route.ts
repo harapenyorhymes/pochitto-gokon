@@ -49,7 +49,7 @@ export async function GET(request: NextRequest) {
 
   try {
     // LINE からアクセストークンを取得
-    const tokenResponse = await exchangeCodeForToken(code)
+    const tokenResponse = await exchangeCodeForToken(code, requestUrl)
 
     // LINE プロフィール情報を取得
     const profile = await getLineProfile(tokenResponse.access_token)
@@ -107,10 +107,16 @@ export async function GET(request: NextRequest) {
   }
 }
 
-async function exchangeCodeForToken(code: string): Promise<LineTokenResponse> {
+async function exchangeCodeForToken(code: string, requestUrl: URL): Promise<LineTokenResponse> {
   const channelId = process.env.NEXT_PUBLIC_LINE_LOGIN_CHANNEL_ID!
   const channelSecret = process.env.LINE_LOGIN_CHANNEL_SECRET!
-  const redirectUri = `${process.env.NEXTAUTH_URL}/api/auth/line/callback`
+
+  // リクエストURLからベースURLを取得
+  const baseUrl = process.env.NEXTAUTH_URL || `${requestUrl.protocol}//${requestUrl.host}`
+  const redirectUri = `${baseUrl}/api/auth/line/callback`
+
+  console.log('Token Exchange - Channel ID:', channelId)
+  console.log('Token Exchange - Redirect URI:', redirectUri)
 
   const params = new URLSearchParams({
     grant_type: 'authorization_code',

@@ -2,7 +2,10 @@ import { NextRequest, NextResponse } from 'next/server'
 
 export async function GET(request: NextRequest) {
   const channelId = process.env.NEXT_PUBLIC_LINE_LOGIN_CHANNEL_ID
-  const redirectUri = `${process.env.NEXTAUTH_URL}/api/auth/line/callback`
+
+  // リクエストURLからベースURLを取得
+  const baseUrl = process.env.NEXTAUTH_URL || `${request.nextUrl.protocol}//${request.nextUrl.host}`
+  const redirectUri = `${baseUrl}/api/auth/line/callback`
 
   if (!channelId) {
     return NextResponse.json(
@@ -10,6 +13,9 @@ export async function GET(request: NextRequest) {
       { status: 500 }
     )
   }
+
+  console.log('LINE Login - Channel ID:', channelId)
+  console.log('LINE Login - Redirect URI:', redirectUri)
 
   // LINE Login URL を生成
   const state = generateRandomState()
