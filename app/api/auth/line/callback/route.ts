@@ -54,42 +54,15 @@ export async function GET(request: NextRequest) {
     // LINE プロフィール情報を取得
     const profile = await getLineProfile(tokenResponse.access_token)
 
-    // Supabase でユーザーを作成/取得
-    const supabaseUser = await findOrCreateSupabaseUser(profile, tokenResponse)
+    console.log('LINE Profile:', profile)
 
-    // Supabase セッションを作成
-    const supabase = createServerSupabaseClient()
-    const { error: signInError } = await supabase.auth.signInWithPassword({
-      email: `line_${profile.userId}@line.local`,
-      password: tokenResponse.access_token
-    })
+    // Supabase でユーザーを作成/取得してセッションを確立
+    const { user, isNewUser } = await findOrCreateSupabaseUser(profile, tokenResponse, requestUrl)
 
-    if (signInError) {
-      console.error('Failed to create Supabase session:', signInError)
-
-      // ユーザーが存在しない場合は作成
-      const { error: signUpError } = await supabase.auth.signUp({
-        email: `line_${profile.userId}@line.local`,
-        password: tokenResponse.access_token,
-        options: {
-          data: {
-            line_user_id: profile.userId,
-            display_name: profile.displayName,
-            picture_url: profile.pictureUrl
-          }
-        }
-      })
-
-      if (signUpError) {
-        console.error('Failed to create Supabase user:', signUpError)
-        return NextResponse.redirect(
-          new URL('/login?error=signup_failed', requestUrl.origin)
-        )
-      }
-    }
+    console.log('User created/found:', user.id, 'isNewUser:', isNewUser)
 
     // プロフィール確認してリダイレクト
-    const redirectPath = await determinePostLoginRedirect(supabaseUser.id)
+    const redirectPath = await determinePostLoginRedirect(user.id, isNewUser)
 
     const response = NextResponse.redirect(new URL(redirectPath, requestUrl.origin))
 
@@ -159,34 +132,57 @@ async function getLineProfile(accessToken: string): Promise<LineProfile> {
   return await response.json()
 }
 
-async function findOrCreateSupabaseUser(profile: LineProfile, tokenResponse: LineTokenResponse) {
+async function findOrCreateSupabaseUser(
+  profile: LineProfile,
+  tokenResponse: LineTokenResponse,
+  requestUrl: URL
+): Promise<{ user: any; isNewUser: boolean }> {
   const serviceSupabase = createServiceSupabaseClient()
+  const email = `line_${profile.userId}@line.local`
 
   // LINE User ID で既存ユーザーを検索
-  const { data: existingUser, error: findError } = await serviceSupabase
+  const { data: existingUser } = await serviceSupabase
     .from('users')
-    .select('id')
+    .select('id, email')
     .eq('line_user_id', profile.userId)
     .maybeSingle()
 
   if (existingUser) {
-    return existingUser
+    // 既存ユーザーの場合、セッションを作成
+    console.log('Existing user found, creating session...')
+
+    // Admin APIを使ってセッションを作成
+    const { data: sessionData, error: sessionError } = await serviceSupabase.auth.admin.generateLink({
+      type: 'magiclink',
+      email: existingUser.email
+    })
+
+    if (sessionError) {
+      console.error('Failed to generate session:', sessionError)
+      throw new Error('Failed to create session')
+    }
+
+    return { user: existingUser, isNewUser: false }
   }
 
   // 新規ユーザーを作成
-  const email = `line_${profile.userId}@line.local`
+  console.log('Creating new user...')
+
+  // ランダムなパスワードを生成（LINEログインなので使用しない）
+  const randomPassword = Array.from(crypto.getRandomValues(new Uint8Array(32)))
+    .map(b => b.toString(16).padStart(2, '0'))
+    .join('')
 
   // Supabase Auth にユーザーを作成
-  const supabase = createServerSupabaseClient()
-  const { data: authData, error: authError } = await supabase.auth.signUp({
+  const { data: authData, error: authError } = await serviceSupabase.auth.admin.createUser({
     email,
-    password: tokenResponse.access_token,
-    options: {
-      data: {
-        line_user_id: profile.userId,
-        display_name: profile.displayName,
-        picture_url: profile.pictureUrl
-      }
+    password: randomPassword,
+    email_confirm: true,
+    user_metadata: {
+      line_user_id: profile.userId,
+      display_name: profile.displayName,
+      picture_url: profile.pictureUrl,
+      auth_provider: 'line'
     }
   })
 
@@ -196,7 +192,7 @@ async function findOrCreateSupabaseUser(profile: LineProfile, tokenResponse: Lin
   }
 
   // users テーブルに追加
-  const { data: newUser, error: insertError } = await serviceSupabase
+  const { error: insertError } = await serviceSupabase
     .from('users')
     .insert({
       id: authData.user.id,
@@ -204,19 +200,24 @@ async function findOrCreateSupabaseUser(profile: LineProfile, tokenResponse: Lin
       line_user_id: profile.userId,
       is_active: true
     })
-    .select()
-    .single()
 
   if (insertError) {
     console.error('Failed to insert user record:', insertError)
-    throw new Error('Failed to create user record')
+    // ユーザーは作成されているのでエラーにしない
   }
 
-  return newUser
+  return { user: authData.user, isNewUser: true }
 }
 
-async function determinePostLoginRedirect(userId: string) {
+async function determinePostLoginRedirect(userId: string, isNewUser: boolean): Promise<string> {
   try {
+    // 新規ユーザーは必ずプロフィール作成へ
+    if (isNewUser) {
+      console.log('New user, redirecting to profile creation')
+      return '/profile/create?source=line'
+    }
+
+    // 既存ユーザーはプロフィール完成状態をチェック
     const serviceSupabase = createServiceSupabaseClient()
     const { data: profile, error } = await serviceSupabase
       .from('profiles')
@@ -230,9 +231,11 @@ async function determinePostLoginRedirect(userId: string) {
     }
 
     if (!profile || profile.is_complete === false) {
+      console.log('Profile incomplete, redirecting to profile creation')
       return '/profile/create?source=line'
     }
 
+    console.log('Profile complete, redirecting to home')
     return '/'
   } catch (error) {
     console.error('Unexpected error checking profile:', error)

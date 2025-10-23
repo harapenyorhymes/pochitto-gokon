@@ -25,8 +25,15 @@ export default function CreateProfilePage() {
     const metadata = user.user_metadata as Record<string, unknown> | undefined
     if (!metadata) return undefined
 
-    const nickname = typeof metadata.name === 'string' ? metadata.name : undefined
+    // LINEログインの場合は display_name を使用
+    const nickname =
+      typeof metadata.display_name === 'string' ? metadata.display_name :
+      typeof metadata.name === 'string' ? metadata.name :
+      undefined
+
     const bio = typeof metadata.statusMessage === 'string' ? metadata.statusMessage : undefined
+
+    console.log('Initial profile data from metadata:', { nickname, bio, metadata })
 
     if (!nickname && !bio) return undefined
 

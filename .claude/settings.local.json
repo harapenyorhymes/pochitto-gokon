@@ -23,7 +23,8 @@
       "Bash(dir)",
       "Bash(vercel:*)",
       "Bash(printf:*)",
-      "Bash(git tag:*)"
+      "Bash(git tag:*)",
+      "Bash(cat:*)"
     ],
     "deny": [],
     "ask": []
