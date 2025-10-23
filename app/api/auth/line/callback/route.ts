@@ -40,12 +40,22 @@ export async function GET(request: NextRequest) {
 
   // state の検証
   const savedState = request.cookies.get('line_state')?.value
+  console.log('LINE Callback - State from URL:', state)
+  console.log('LINE Callback - State from Cookie:', savedState)
+  console.log('LINE Callback - All cookies:', request.cookies.getAll().map(c => `${c.name}=${c.value}`).join(', '))
+
   if (!state || state !== savedState) {
-    console.error('State mismatch or missing')
+    console.error('State mismatch or missing', {
+      receivedState: state,
+      savedState: savedState,
+      match: state === savedState
+    })
     return NextResponse.redirect(
-      new URL('/login?error=invalid_state', requestUrl.origin)
+      new URL('/login?error=invalid_state&error_description=' + encodeURIComponent('State verification failed. Please try again.'), requestUrl.origin)
     )
   }
+
+  console.log('State verification successful')
 
   if (!code) {
     return NextResponse.redirect(

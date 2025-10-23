@@ -33,19 +33,25 @@ export async function GET(request: NextRequest) {
   )
 
   // state と nonce を cookie に保存
+  // モバイルのLINEアプリ経由のリダイレクトに対応するため、sameSite: 'none'を使用
   response.cookies.set('line_state', state, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax',
-    maxAge: 600 // 10分
+    secure: true, // sameSite: 'none' には secure が必須
+    sameSite: 'none', // クロスサイトでの Cookie 送信を許可
+    maxAge: 600, // 10分
+    path: '/'
   })
 
   response.cookies.set('line_nonce', nonce, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax',
-    maxAge: 600
+    secure: true,
+    sameSite: 'none',
+    maxAge: 600,
+    path: '/'
   })
+
+  console.log('LINE Login - State set in cookie:', state)
+  console.log('LINE Login - Cookie settings: sameSite=none, secure=true')
 
   return response
 }
