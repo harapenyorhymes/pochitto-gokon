@@ -85,23 +85,31 @@ export default function LoginPage() {
 
   return (
     <AuthGuard requireAuth={false}>
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-pink-50 to-purple-50">
-        <div className="max-w-md w-full space-y-8 p-8 bg-white rounded-lg shadow-lg">
-          <div className="text-center">
-            <h1 className="text-3xl font-bold text-gray-900">ポチッと合コン</h1>
-            <p className="mt-2 text-gray-600">アカウントにログイン</p>
-          </div>
+      <div style={{minHeight: '100vh', background: 'linear-gradient(135deg, #fdf2f8, #ffffff, #faf5ff)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px'}}>
+        <div style={{maxWidth: '428px', width: '100%'}}>
+          <div style={{background: 'rgba(255, 255, 255, 0.9)', backdropFilter: 'blur(16px)', borderRadius: '24px', padding: '40px 32px', boxShadow: '0 20px 60px -3px rgba(0, 0, 0, 0.15)', border: '1px solid rgba(255, 255, 255, 0.2)'}}>
 
-          <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
-            {error && (
-              <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-md text-sm">
-                {error}
+            {/* Header */}
+            <div style={{textAlign: 'center', marginBottom: '32px'}}>
+              <div style={{width: '80px', height: '80px', background: 'linear-gradient(135deg, #ec4899, #8b5cf6)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px', fontSize: '40px', boxShadow: '0 10px 25px -3px rgba(236, 72, 153, 0.3)'}}>
+                💕
               </div>
-            )}
+              <h1 style={{fontSize: '28px', fontWeight: 'bold', background: 'linear-gradient(to right, #ec4899, #8b5cf6)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', marginBottom: '8px'}}>
+                ポチッと合コン
+              </h1>
+              <p style={{color: '#6b7280', fontSize: '14px'}}>アカウントにログイン</p>
+            </div>
 
-            <div className="space-y-4">
+            <form onSubmit={handleSubmit} style={{display: 'flex', flexDirection: 'column', gap: '20px'}}>
+              {error && (
+                <div style={{background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.3)', color: '#dc2626', padding: '12px 16px', borderRadius: '12px', fontSize: '14px'}}>
+                  {error}
+                </div>
+              )}
+
+              {/* Email Input */}
               <div>
-                <label htmlFor="email" className="block text-sm font-medium text-gray-700">
+                <label htmlFor="email" style={{display: 'block', fontSize: '14px', fontWeight: '600', color: '#374151', marginBottom: '8px'}}>
                   メールアドレス
                 </label>
                 <input
@@ -111,13 +119,22 @@ export default function LoginPage() {
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-pink-500 focus:border-pink-500"
+                  style={{width: '100%', padding: '12px 16px', border: '1px solid rgba(229, 231, 235, 0.5)', borderRadius: '12px', fontSize: '16px', background: 'rgba(255, 255, 255, 0.8)', transition: 'all 0.2s ease'}}
                   placeholder="your@example.com"
+                  onFocus={(e) => {
+                    e.currentTarget.style.borderColor = '#ec4899'
+                    e.currentTarget.style.outline = '2px solid rgba(236, 72, 153, 0.2)'
+                  }}
+                  onBlur={(e) => {
+                    e.currentTarget.style.borderColor = 'rgba(229, 231, 235, 0.5)'
+                    e.currentTarget.style.outline = 'none'
+                  }}
                 />
               </div>
 
+              {/* Password Input */}
               <div>
-                <label htmlFor="password" className="block text-sm font-medium text-gray-700">
+                <label htmlFor="password" style={{display: 'block', fontSize: '14px', fontWeight: '600', color: '#374151', marginBottom: '8px'}}>
                   パスワード
                 </label>
                 <input
@@ -127,48 +144,93 @@ export default function LoginPage() {
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-pink-500 focus:border-pink-500"
+                  style={{width: '100%', padding: '12px 16px', border: '1px solid rgba(229, 231, 235, 0.5)', borderRadius: '12px', fontSize: '16px', background: 'rgba(255, 255, 255, 0.8)', transition: 'all 0.2s ease'}}
                   placeholder="パスワード"
+                  onFocus={(e) => {
+                    e.currentTarget.style.borderColor = '#ec4899'
+                    e.currentTarget.style.outline = '2px solid rgba(236, 72, 153, 0.2)'
+                  }}
+                  onBlur={(e) => {
+                    e.currentTarget.style.borderColor = 'rgba(229, 231, 235, 0.5)'
+                    e.currentTarget.style.outline = 'none'
+                  }}
                 />
               </div>
-            </div>
 
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-pink-600 hover:bg-pink-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-pink-500 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {loading ? 'ログイン中...' : 'ログイン'}
-            </button>
+              {/* Login Button */}
+              <button
+                type="submit"
+                disabled={loading}
+                style={{width: '100%', padding: '14px', background: 'linear-gradient(to right, #ec4899, #8b5cf6)', color: 'white', fontWeight: '600', borderRadius: '12px', border: 'none', cursor: loading ? 'not-allowed' : 'pointer', fontSize: '16px', boxShadow: '0 4px 14px 0 rgba(236, 72, 153, 0.3)', transition: 'all 0.3s ease', opacity: loading ? 0.5 : 1, transform: 'scale(1)'}}
+                onMouseEnter={(e) => {
+                  if (!loading) {
+                    e.currentTarget.style.transform = 'scale(1.02)'
+                    e.currentTarget.style.boxShadow = '0 8px 25px 0 rgba(236, 72, 153, 0.4)'
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'scale(1)'
+                  e.currentTarget.style.boxShadow = '0 4px 14px 0 rgba(236, 72, 153, 0.3)'
+                }}
+              >
+                {loading ? 'ログイン中...' : 'ログイン'}
+              </button>
 
-            {lineLoginEnabled && (
-              <div className="space-y-4">
-                <div className="flex items-center">
-                  <div className="flex-1 border-t border-gray-200" />
-                  <span className="px-4 text-sm text-gray-500">または</span>
-                  <div className="flex-1 border-t border-gray-200" />
+              {/* LINE Login */}
+              {lineLoginEnabled && (
+                <div style={{display: 'flex', flexDirection: 'column', gap: '16px'}}>
+                  <div style={{display: 'flex', alignItems: 'center', gap: '12px'}}>
+                    <div style={{flex: 1, height: '1px', background: 'linear-gradient(to right, transparent, rgba(209, 213, 219, 0.5), transparent)'}} />
+                    <span style={{fontSize: '14px', color: '#9ca3af', fontWeight: '500'}}>または</span>
+                    <div style={{flex: 1, height: '1px', background: 'linear-gradient(to left, transparent, rgba(209, 213, 219, 0.5), transparent)'}} />
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={handleLineLogin}
+                    disabled={lineLoading}
+                    style={{width: '100%', padding: '14px', background: '#06C755', color: 'white', fontWeight: '600', borderRadius: '12px', border: 'none', cursor: lineLoading ? 'not-allowed' : 'pointer', fontSize: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', boxShadow: '0 4px 14px 0 rgba(6, 199, 85, 0.3)', transition: 'all 0.3s ease', opacity: lineLoading ? 0.5 : 1, transform: 'scale(1)'}}
+                    onMouseEnter={(e) => {
+                      if (!lineLoading) {
+                        e.currentTarget.style.transform = 'scale(1.02)'
+                        e.currentTarget.style.background = '#05B04A'
+                        e.currentTarget.style.boxShadow = '0 8px 25px 0 rgba(6, 199, 85, 0.4)'
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.transform = 'scale(1)'
+                      e.currentTarget.style.background = '#06C755'
+                      e.currentTarget.style.boxShadow = '0 4px 14px 0 rgba(6, 199, 85, 0.3)'
+                    }}
+                  >
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M19.365 9.863c.349 0 .63.285.63.631 0 .345-.281.63-.63.63H17.61v1.125h1.755c.349 0 .63.283.63.63 0 .344-.281.629-.63.629h-2.386c-.345 0-.627-.285-.627-.629V8.108c0-.345.282-.63.63-.63h2.386c.346 0 .627.285.627.63 0 .349-.281.63-.63.63H17.61v1.125h1.755zm-3.855 3.016c0 .27-.174.51-.432.596-.064.021-.133.031-.199.031-.211 0-.391-.09-.51-.25l-2.443-3.317v2.94c0 .344-.279.629-.631.629-.346 0-.626-.285-.626-.629V8.108c0-.27.173-.51.43-.595.06-.023.136-.033.194-.033.195 0 .375.104.495.254l2.462 3.33V8.108c0-.345.282-.63.63-.63.345 0 .63.285.63.63v4.771zm-5.741 0c0 .344-.282.629-.631.629-.345 0-.627-.285-.627-.629V8.108c0-.345.282-.63.63-.63.346 0 .628.285.628.63v4.771zm-2.466.629H4.917c-.345 0-.63-.285-.63-.629V8.108c0-.345.285-.63.63-.63.348 0 .63.285.63.63v4.141h1.756c.348 0 .629.283.629.63 0 .344-.282.629-.629.629M24 10.314C24 4.943 18.615.572 12 .572S0 4.943 0 10.314c0 4.811 4.27 8.842 10.035 9.608.391.082.923.258 1.058.59.12.301.079.766.038 1.08l-.164 1.02c-.045.301-.24 1.186 1.049.645 1.291-.539 6.916-4.078 9.436-6.975C23.176 14.393 24 12.458 24 10.314" fill="currentColor"/>
+                    </svg>
+                    {lineLoading ? 'LINEで処理中...' : 'LINEでログイン'}
+                  </button>
                 </div>
+              )}
 
-                <button
-                  type="button"
-                  onClick={handleLineLogin}
-                  disabled={lineLoading}
-                  className="w-full flex items-center justify-center gap-2 py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-500 hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {lineLoading ? 'LINEで処理中...' : 'LINEでログイン'}
-                </button>
+              {/* Sign Up Link */}
+              <div style={{textAlign: 'center', marginTop: '8px'}}>
+                <p style={{fontSize: '14px', color: '#6b7280'}}>
+                  アカウントをお持ちでない方は{' '}
+                  <Link
+                    href="/signup"
+                    style={{color: '#ec4899', fontWeight: '600', textDecoration: 'none', transition: 'color 0.2s ease'}}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.color = '#8b5cf6'
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.color = '#ec4899'
+                    }}
+                  >
+                    新規登録
+                  </Link>
+                </p>
               </div>
-            )}
-
-            <div className="text-center">
-              <p className="text-sm text-gray-600">
-                アカウントをお持ちでない方は{' '}
-                <Link href="/signup" className="text-pink-600 hover:text-pink-500 font-medium">
-                  新規登録
-                </Link>
-              </p>
-            </div>
-          </form>
+            </form>
+          </div>
         </div>
       </div>
     </AuthGuard>

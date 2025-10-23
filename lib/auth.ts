@@ -30,18 +30,19 @@ export const signInWithEmail = async (email: string, password: string) => {
   return { data, error }
 }
 
-// LINEログイン（OAuth）を開始
+// LINEログイン（カスタム実装）を開始
 export const signInWithLine = async () => {
-  const redirectTo = `${window.location.origin}/auth/callback?provider=line`
-  const { data, error } = await supabase.auth.signInWithOAuth({
-    // Supabaseの型定義にはLINEが含まれていないためキャストを使用
-    provider: 'line' as any,
-    options: {
-      scopes: 'profile openid email',
-      redirectTo
+  try {
+    // カスタムLINEログインエンドポイントにリダイレクト
+    window.location.href = '/api/auth/line/login'
+    return { data: null, error: null }
+  } catch (error) {
+    console.error('LINE login redirect error:', error)
+    return {
+      data: null,
+      error: { message: 'Failed to redirect to LINE login' }
     }
-  })
-  return { data, error }
+  }
 }
 
 // サインアウト
