@@ -210,7 +210,7 @@ export default function EventsPage() {
     }
   }, [lineStatus, participationType, router, selections, selectedAreaId])
 
-  const isSubmitDisabled = isSubmitting || selections.length === 0
+  const isSubmitDisabled = isSubmitting
 
   return (
     <AuthGuard requireAuth={true}>
@@ -356,6 +356,7 @@ export default function EventsPage() {
     </AuthGuard>
   )
 }
+
 
 
 
