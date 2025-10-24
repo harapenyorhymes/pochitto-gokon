@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
@@ -17,7 +17,7 @@ type LineStatus = {
 }
 
 const TEXT = {
-  close: '\u9589\u3058\u308b',
+  closeLabel: '\u9589\u3058\u308b',
   areaName: '\u540d\u53e4\u5c4b\u6804\u30a8\u30ea\u30a2',
   prefecture: '\u611b\u77e5\u770c',
   city: '\u540d\u53e4\u5c4b\u5e02',
@@ -33,7 +33,7 @@ const TEXT = {
   needFriendDescription: '\u516c\u5f0f\u30a2\u30ab\u30a6\u30f3\u30c8\u3092\u53cb\u3060\u3061\u8ffd\u52a0\u3059\u308b\u3068\u3001\u30de\u30c3\u30c1\u901a\u77e5\u3092LINE\u3067\u3082\u53d7\u3051\u53d6\u308c\u307e\u3059\u3002\u8ffd\u52a0\u5f8c\u306b\u518d\u78ba\u8a8d\u3057\u3066\u304f\u3060\u3055\u3044\u3002',
   friendAddButton: '\u53cb\u3060\u3061\u8ffd\u52a0\u30da\u30fc\u30b8\u3092\u958b\u304f',
   friendCheckButton: '\u53cb\u3060\u3061\u8ffd\u52a0\u6e08\u307f\u3092\u78ba\u8a8d\u3059\u308b',
-  close: '\u9589\u3058\u308b',
+  closeLabel: '\u9589\u3058\u308b',
   friendUrlMissing: 'LINE\u53cb\u3060\u3061\u8ffd\u52a0URL\u304c\u8a2d\u5b9a\u3055\u308c\u3066\u3044\u307e\u305b\u3093\u3002\u7ba1\u7406\u8005\u306b\u304a\u554f\u3044\u5408\u308f\u305b\u304f\u3060\u3055\u3044\u3002',
   registering: '\u767b\u9332\u4e2d...',
   registerButton: '\u65e5\u7a0b\u3092\u767b\u9332\u3059\u308b',
@@ -235,7 +235,7 @@ export default function EventsPage() {
                   onClick={() => setLineModal(null)}
                   className="inline-flex items-center justify-center rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 transition"
                 >
-                  {TEXT.close}
+                  {TEXT.closeLabel}
                 </button>
               </div>
             </div>
@@ -271,7 +271,7 @@ export default function EventsPage() {
                   onClick={() => setLineModal(null)}
                   className="inline-flex items-center justify-center rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 transition"
                 >
-                  {TEXT.close}
+                  {TEXT.closeLabel}
                 </button>
               </div>
             </div>
@@ -358,3 +358,4 @@ export default function EventsPage() {
     </AuthGuard>
   )
 }
+
