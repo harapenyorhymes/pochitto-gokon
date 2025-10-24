@@ -215,7 +215,10 @@ export default function EventsPage() {
 
   return (
     <AuthGuard requireAuth={true}>
-      <div className="min-h-screen bg-gradient-to-br from-pink-50 via-white to-purple-50 pb-48">
+      <div
+        className="min-h-screen bg-gradient-to-br from-pink-50 via-white to-purple-50 pb-48"
+        style={{ paddingBottom: 'calc(12rem + env(safe-area-inset-bottom, 0px))' }}
+      >
         {lineModal === 'link' && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm px-4">
             <div className="max-w-sm w-full rounded-2xl bg-white p-6 shadow-xl space-y-4 text-center">
@@ -317,7 +320,13 @@ export default function EventsPage() {
 
             <ParticipationSelector value={participationType} onChange={setParticipationType} />
 
-            <div className="pt-9 px-4 pb-12 mb-24">
+            <div
+              className="pt-9 px-4"
+              style={{
+                paddingBottom: 'calc(3rem + env(safe-area-inset-bottom, 0px))',
+                marginBottom: 'calc(6rem + env(safe-area-inset-bottom, 0px))'
+              }}
+            >
               <button
                 type="button"
                 onClick={handleSubmit}
