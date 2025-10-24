@@ -17,6 +17,7 @@ type LineStatus = {
 }
 
 const TEXT = {
+  close: '\u9589\u3058\u308b',
   areaName: '\u540d\u53e4\u5c4b\u6804\u30a8\u30ea\u30a2',
   prefecture: '\u611b\u77e5\u770c',
   city: '\u540d\u53e4\u5c4b\u5e02',
