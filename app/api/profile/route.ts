@@ -7,26 +7,61 @@ export async function GET() {
   try {
     const supabase = createServerSupabaseClient()
 
-    // 現在のユーザーを取得
-    const { data: { user }, error: userError } = await supabase.auth.getUser()
+    const {
+      data: { user },
+      error: userError
+    } = await supabase.auth.getUser()
+
     if (userError || !user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // プロフィール取得
-    const { data: profile, error } = await supabase
+    const { data: profile, error: profileError } = await supabase
       .from('profiles')
       .select('*')
       .eq('id', user.id)
-      .single()
+      .maybeSingle()
 
-    if (error && error.code !== 'PGRST116') { // Not found以外のエラー
-      throw error
+    if (profileError && profileError.code !== 'PGRST116') {
+      throw profileError
+    }
+
+    const serviceSupabase = createServiceSupabaseClient()
+
+    const { data: userRecord, error: userRecordError } = await serviceSupabase
+      .from('users')
+      .select('line_user_id, line_friend_flag, line_friend_checked_at, line_linked_at, level')
+      .eq('id', user.id)
+      .maybeSingle()
+
+    if (userRecordError) {
+      console.error('Failed to fetch user record:', userRecordError)
+    }
+
+    const { data: penaltyLogs, error: penaltyLogsError } = await serviceSupabase
+      .from('penalty_logs')
+      .select('id, penalty_type, points_delta, detail, processed_at, match_id')
+      .eq('user_id', user.id)
+      .order('processed_at', { ascending: false })
+      .limit(20)
+
+    if (penaltyLogsError) {
+      console.error('Failed to fetch penalty logs:', penaltyLogsError)
     }
 
     return NextResponse.json({
       success: true,
-      data: profile || null
+      data: profile || null,
+      lineStatus: userRecord
+        ? {
+            lineUserId: userRecord.line_user_id ?? null,
+            friendFlag: Boolean(userRecord.line_friend_flag),
+            lineFriendCheckedAt: userRecord.line_friend_checked_at ?? null,
+            lineLinkedAt: userRecord.line_linked_at ?? null,
+            level: userRecord.level ?? 0
+          }
+        : null,
+      penaltyLogs: penaltyLogs || []
     })
   } catch (error) {
     console.error('Profile GET error:', error)

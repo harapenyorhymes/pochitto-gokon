@@ -1,10 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerSupabaseClient, createServiceSupabaseClient } from '@/lib/supabase-server'
 
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
 interface LineTokenResponse {
   access_token: string
   token_type: string
-  refresh_token: string
+  refresh_token?: string
   expires_in: number
   scope: string
   id_token: string
@@ -17,14 +20,19 @@ interface LineProfile {
   statusMessage?: string
 }
 
+interface LineFriendshipStatus {
+  friendFlag: boolean
+}
+
 export async function GET(request: NextRequest) {
   const requestUrl = new URL(request.url)
   const code = requestUrl.searchParams.get('code')
   const state = requestUrl.searchParams.get('state')
   const error = requestUrl.searchParams.get('error')
   const errorDescription = requestUrl.searchParams.get('error_description')
+  let returnPath: string | null = null
 
-  // エラーチェック
+  // エラーチェチE��
   if (error) {
     console.error('LINE Login error:', error, errorDescription)
     const errorUrl = `/login?error=${encodeURIComponent(error)}`
@@ -38,7 +46,7 @@ export async function GET(request: NextRequest) {
     )
   }
 
-  // データベースからstate検証（モバイルでCookieが保持されない問題に対応）
+  // チE�Eタベ�Eスからstate検証�E�モバイルでCookieが保持されなぁE��題に対応！E
   console.log('LINE Callback - State from URL:', state)
 
   if (!state) {
@@ -51,12 +59,11 @@ export async function GET(request: NextRequest) {
   try {
     const serviceSupabase = createServiceSupabaseClient()
 
-    // データベースからstateを検索
+    // チE�Eタベ�Eスからstateを検索
     const { data: savedStateData, error: stateError } = await serviceSupabase
       .from('line_oauth_states')
       .select('*')
       .eq('state', state)
-      .eq('used', false)
       .maybeSingle()
 
     if (stateError) {
@@ -66,14 +73,16 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    if (!savedStateData) {
+    if (!savedStateData || savedStateData.used) {
       console.error('State not found or already used')
       return NextResponse.redirect(
         new URL('/login?error=invalid_state&error_description=' + encodeURIComponent('Invalid or expired state.'), requestUrl.origin)
       )
     }
 
-    // 有効期限チェック
+    returnPath = sanitizeReturnPath(savedStateData.return_to)
+
+    // 有効期限チェチE��
     const expiresAt = new Date(savedStateData.expires_at)
     if (expiresAt < new Date()) {
       console.error('State expired')
@@ -82,7 +91,7 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    // stateを使用済みにマーク（リプレイアタック防止）
+    // stateを使用済みにマ�Eク�E�リプレイアタチE��防止�E�E
     await serviceSupabase
       .from('line_oauth_states')
       .update({ used: true })
@@ -103,10 +112,10 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    // LINE からアクセストークンを取得
+    // LINE からアクセスト�Eクンを取征E
     const tokenResponse = await exchangeCodeForToken(code, requestUrl)
 
-    // LINE プロフィール情報を取得
+    // LINE プロフィール惁E��を取征E
     const profile = await getLineProfile(tokenResponse.access_token)
 
     console.log('LINE Profile:', profile)
@@ -116,17 +125,23 @@ export async function GET(request: NextRequest) {
 
     console.log('User created/found:', user.id, 'isNewUser:', isNewUser)
 
-    // プロフィール確認してリダイレクト
-    const redirectPath = await determinePostLoginRedirect(user.id, isNewUser)
+    const friendshipStatus = await getLineFriendshipStatus(tokenResponse.access_token)
 
-    // Supabase セッションを設定してからリダイレクト
+    await persistLineConnection({
+      supabaseUserId: user.id,
+      lineUserId: profile.userId,
+      tokenResponse,
+      friendshipStatus
+    })
+
+    const redirectPath = await determinePostLoginRedirect(user.id, isNewUser)
     const supabase = createServerSupabaseClient()
 
     if (sessionToken && sessionToken.hashed_token) {
       // トークンハッシュを使ってセッションを検証
       const { error: verifyError } = await supabase.auth.verifyOtp({
         token_hash: sessionToken.hashed_token,
-        type: 'recovery'
+        type: 'magiclink'
       })
 
       if (verifyError) {
@@ -136,7 +151,12 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    const response = NextResponse.redirect(new URL(redirectPath, requestUrl.origin))
+    const baseRedirect = returnPath ?? redirectPath
+    const nextPath = friendshipStatus.friendFlag
+      ? baseRedirect
+      : buildNeedFriendRedirect(baseRedirect)
+
+    const response = NextResponse.redirect(new URL(nextPath, requestUrl.origin))
 
     return response
 
@@ -160,7 +180,7 @@ async function exchangeCodeForToken(code: string, requestUrl: URL): Promise<Line
   const channelId = process.env.NEXT_PUBLIC_LINE_LOGIN_CHANNEL_ID!
   const channelSecret = process.env.LINE_LOGIN_CHANNEL_SECRET!
 
-  // リクエストURLからベースURLを取得
+  // リクエスチERLからベ�EスURLを取征E
   const baseUrl = process.env.NEXTAUTH_URL || `${requestUrl.protocol}//${requestUrl.host}`
   const redirectUri = `${baseUrl}/api/auth/line/callback`
 
@@ -210,6 +230,83 @@ async function getLineProfile(accessToken: string): Promise<LineProfile> {
   return await response.json()
 }
 
+async function getLineFriendshipStatus(accessToken: string): Promise<LineFriendshipStatus> {
+  const response = await fetch('https://api.line.me/friendship/v1/status', {
+    headers: {
+      Authorization: `Bearer ${accessToken}`
+    }
+  })
+
+  if (!response.ok) {
+    const errorData = await response.text()
+    console.error('Failed to get LINE friendship status:', errorData)
+    return { friendFlag: false }
+  }
+
+  const data = await response.json()
+  return {
+    friendFlag: Boolean(data?.friendFlag)
+  }
+}
+
+async function persistLineConnection({
+  supabaseUserId,
+  lineUserId,
+  tokenResponse,
+  friendshipStatus
+}: {
+  supabaseUserId: string
+  lineUserId: string
+  tokenResponse: LineTokenResponse
+  friendshipStatus: LineFriendshipStatus
+}) {
+  const serviceSupabase = createServiceSupabaseClient()
+
+  const updatePayload: Record<string, unknown> = {
+    line_user_id: lineUserId,
+    line_access_token: tokenResponse.access_token,
+    line_friend_flag: friendshipStatus.friendFlag,
+    line_friend_checked_at: new Date().toISOString(),
+    line_linked_at: new Date().toISOString()
+  }
+
+  if (tokenResponse.refresh_token) {
+    updatePayload.line_refresh_token = tokenResponse.refresh_token
+  }
+  if (tokenResponse.expires_in) {
+    updatePayload.line_access_token_expires_at = new Date(Date.now() + tokenResponse.expires_in * 1000).toISOString()
+  }
+
+  const { error } = await serviceSupabase
+    .from('users')
+    .update(updatePayload)
+    .eq('id', supabaseUserId)
+
+  if (error) {
+    console.error('Failed to persist LINE connection info:', error)
+  }
+}
+
+function sanitizeReturnPath(returnPath: string | null | undefined): string | null {
+  if (!returnPath) return null
+
+  try {
+    const decoded = decodeURIComponent(returnPath)
+    if (decoded.startsWith('/')) {
+      return decoded
+    }
+    return null
+  } catch {
+    return null
+  }
+}
+
+function buildNeedFriendRedirect(returnTo: string): string {
+  const params = new URLSearchParams()
+  params.set('returnTo', returnTo)
+  return `/need-add-friend?${params.toString()}`
+}
+
 async function findOrCreateSupabaseUser(
   profile: LineProfile,
   tokenResponse: LineTokenResponse,
@@ -226,10 +323,10 @@ async function findOrCreateSupabaseUser(
     .maybeSingle()
 
   if (existingUser) {
-    // 既存ユーザーの場合、one-time tokenを生成
+    // 既存ユーザーの場合、one-time tokenを生戁E
     console.log('Existing user found, generating token...')
 
-    // Admin APIを使ってone-time tokenを生成
+    // Admin APIを使ってone-time tokenを生戁E
     const { data: tokenData, error: tokenError } = await serviceSupabase.auth.admin.generateLink({
       type: 'magiclink',
       email: existingUser.email,
@@ -243,9 +340,17 @@ async function findOrCreateSupabaseUser(
       throw new Error('Failed to create token')
     }
 
-    // URLからhashed_tokenを抽出
-    const urlParams = new URL(tokenData.properties.action_link).searchParams
-    const hashedToken = urlParams.get('token_hash')
+    // ハッシュ化されたトークンを取得
+    const actionLink = tokenData.properties?.action_link
+    const hashedToken =
+      (tokenData.properties as Record<string, string | undefined>)?.hashed_token ||
+      (tokenData.properties as Record<string, string | undefined>)?.token_hash ||
+      (actionLink
+        ? (() => {
+            const params = new URL(actionLink).searchParams
+            return params.get('token_hash') || params.get('token')
+          })()
+        : null)
 
     if (!hashedToken) {
       console.error('No token_hash found in action link')
@@ -257,20 +362,20 @@ async function findOrCreateSupabaseUser(
       isNewUser: false,
       sessionToken: {
         hashed_token: hashedToken,
-        type: 'recovery'
+        type: 'magiclink'
       }
     }
   }
 
-  // 新規ユーザーを作成
+  // 新規ユーザーを作�E
   console.log('Creating new user...')
 
-  // ランダムなパスワードを生成（LINEログインなので使用しない）
+  // ランダムなパスワードを生�E�E�EINEログインなので使用しなぁE��E
   const randomPassword = Array.from(crypto.getRandomValues(new Uint8Array(32)))
     .map(b => b.toString(16).padStart(2, '0'))
     .join('')
 
-  // Supabase Auth にユーザーを作成
+  // Supabase Auth にユーザーを作�E
   const { data: authData, error: authError } = await serviceSupabase.auth.admin.createUser({
     email,
     password: randomPassword,
@@ -288,7 +393,7 @@ async function findOrCreateSupabaseUser(
     throw new Error('Failed to create user')
   }
 
-  // users テーブルに追加
+  // users チE�Eブルに追加
   const { error: insertError } = await serviceSupabase
     .from('users')
     .insert({
@@ -300,10 +405,10 @@ async function findOrCreateSupabaseUser(
 
   if (insertError) {
     console.error('Failed to insert user record:', insertError)
-    // ユーザーは作成されているのでエラーにしない
+    // ユーザーは作�EされてぁE��のでエラーにしなぁE
   }
 
-  // 新規ユーザー用のone-time tokenを生成
+  // 新規ユーザー用のone-time tokenを生戁E
   const { data: tokenData, error: tokenError } = await serviceSupabase.auth.admin.generateLink({
     type: 'magiclink',
     email,
@@ -317,9 +422,17 @@ async function findOrCreateSupabaseUser(
     throw new Error('Failed to create token')
   }
 
-  // URLからhashed_tokenを抽出
-  const urlParams = new URL(tokenData.properties.action_link).searchParams
-  const hashedToken = urlParams.get('token_hash')
+  // ハッシュ化されたトークンを取得
+  const actionLink = tokenData.properties?.action_link
+  const hashedToken =
+    (tokenData.properties as Record<string, string | undefined>)?.hashed_token ||
+    (tokenData.properties as Record<string, string | undefined>)?.token_hash ||
+    (actionLink
+      ? (() => {
+          const params = new URL(actionLink).searchParams
+          return params.get('token_hash') || params.get('token')
+        })()
+      : null)
 
   if (!hashedToken) {
     console.error('No token_hash found in action link for new user')
@@ -331,20 +444,20 @@ async function findOrCreateSupabaseUser(
     isNewUser: true,
     sessionToken: {
       hashed_token: hashedToken,
-      type: 'recovery'
+      type: 'magiclink'
     }
   }
 }
 
 async function determinePostLoginRedirect(userId: string, isNewUser: boolean): Promise<string> {
   try {
-    // 新規ユーザーは必ずプロフィール作成へ
+    // 新規ユーザーは忁E��プロフィール作�Eへ
     if (isNewUser) {
       console.log('New user, redirecting to profile creation')
       return '/profile/create?source=line'
     }
 
-    // 既存ユーザーはプロフィール完成状態をチェック
+    // 既存ユーザーはプロフィール完�E状態をチェチE��
     const serviceSupabase = createServiceSupabaseClient()
     const { data: profile, error } = await serviceSupabase
       .from('profiles')

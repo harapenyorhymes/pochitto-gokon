@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { signUpWithEmail } from '@/lib/auth'
+import { signInWithLine, signUpWithEmail } from '@/lib/auth'
 import { AuthGuard } from '@/components/AuthGuard'
 import { signupWithProfileSchema, SignupWithProfileFormData, calculateAge } from '@/lib/validations/profile'
 
@@ -16,6 +16,9 @@ function SignUpForm() {
   const [invitationCode, setInvitationCode] = useState<string>('')
   const router = useRouter()
   const searchParams = useSearchParams()
+  const handleLineSignUp = () => {
+    signInWithLine('/profile/create?source=line')
+  }
 
   const {
     register,
@@ -205,6 +208,20 @@ function SignUpForm() {
               )}
             </div>
 
+            <div className="mb-10 rounded-2xl border border-green-200 bg-green-50 p-6">
+              <h2 className="text-lg font-semibold text-green-700">LINEでかんたん登録</h2>
+              <p className="mt-2 text-sm text-green-600">
+                LINEログインでプロフィール入力をスキップできます。既存のLINE情報をもとに登録を開始します。
+              </p>
+              <button
+                type="button"
+                onClick={handleLineSignUp}
+                className="mt-4 inline-flex items-center justify-center rounded-md bg-[#06C755] px-4 py-2 text-sm font-semibold text-white shadow hover:bg-[#05b04f] transition"
+              >
+                LINEで登録する
+              </button>
+            </div>
+
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
               {errors.root && (
                 <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-md text-sm">
@@ -213,8 +230,8 @@ function SignUpForm() {
               )}
 
               {/* アカウント情報 */}
-              <div className="space-y-4">
-                <h2 className="text-lg font-medium text-gray-900 border-b pb-2">アカウント情報</h2>
+            <div className="space-y-4">
+              <h2 className="text-lg font-medium text-gray-900 border-b pb-2">アカウント情報</h2>
 
                 <div>
                   <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">

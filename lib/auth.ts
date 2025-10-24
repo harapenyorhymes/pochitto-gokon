@@ -31,10 +31,19 @@ export const signInWithEmail = async (email: string, password: string) => {
 }
 
 // LINEログイン（カスタム実装）を開始
-export const signInWithLine = async () => {
+export const signInWithLine = async (returnTo?: string) => {
   try {
     // カスタムLINEログインエンドポイントにリダイレクト
-    window.location.href = '/api/auth/line/login'
+    const params = new URLSearchParams()
+    if (returnTo && returnTo.startsWith('/')) {
+      params.set('returnTo', returnTo)
+    }
+
+    const redirectUrl = params.toString()
+      ? `/api/auth/line/login?${params.toString()}`
+      : '/api/auth/line/login'
+
+    window.location.href = redirectUrl
     return { data: null, error: null }
   } catch (error) {
     console.error('LINE login redirect error:', error)

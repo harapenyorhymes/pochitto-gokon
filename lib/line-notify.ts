@@ -1,3 +1,5 @@
+import { createServiceSupabaseClient } from '@/lib/supabase-server'
+
 export interface LineNotificationPayload {
   to: string // LINE User ID
   messages: LineMessage[]
@@ -10,7 +12,7 @@ export interface LineMessage {
 }
 
 export interface NotificationTemplate {
-  type: 'match_success' | 'chat_created' | 'reminder'
+  type: 'match_success' | 'chat_created' | 'reminder' | 'penalty_warning' | 'penalty_applied'
   data: Record<string, any>
 }
 
@@ -29,10 +31,13 @@ export class LineNotificationService {
   private baseUrl = 'https://api.line.me/v2/bot'
 
   constructor() {
-    this.channelAccessToken = process.env.LINE_CHANNEL_ACCESS_TOKEN || ''
+    this.channelAccessToken =
+      process.env.LINE_MESSAGING_ACCESS_TOKEN ||
+      process.env.LINE_CHANNEL_ACCESS_TOKEN ||
+      ''
 
     if (!this.channelAccessToken) {
-      console.warn('LINE_CHANNEL_ACCESS_TOKEN is not set. LINE notifications will be disabled.')
+      console.warn('LINE_MESSAGING_ACCESS_TOKEN is not set. LINE notifications will be disabled.')
     }
   }
 
@@ -83,6 +88,12 @@ export class LineNotificationService {
       case 'reminder':
         return this.createReminderMessage(template.data)
 
+      case 'penalty_warning':
+        return this.createPenaltyWarningMessage(template.data)
+
+      case 'penalty_applied':
+        return this.createPenaltyAppliedMessage(template.data)
+
       default:
         return [{
           type: 'text',
@@ -97,16 +108,17 @@ export class LineNotificationService {
   private createMatchSuccessMessage(data: any): LineMessage[] {
     const { date, time, memberCount, chatUrl } = data
 
-    const message = `🎉 合コンが成立しました！
+    const lines = [
+      'Great news! A group date has been confirmed.',
+      'Date: ' + date + ' ' + time,
+      'Participants: ' + memberCount
+    ]
 
-📅 日程: ${date} ${time}
-📍 エリア: 名古屋栄
-👥 参加者: ${memberCount}名
+    if (chatUrl) {
+      lines.push('Chat room: ' + chatUrl)
+    }
 
-チャットルームが作成されました。
-メンバーと交流して当日を楽しみにしてくださいね！
-
-📱 チャットを開く: ${chatUrl}`
+    const message = lines.join('\n')
 
     return [{
       type: 'text',
@@ -139,13 +151,29 @@ export class LineNotificationService {
   private createReminderMessage(data: any): LineMessage[] {
     const { date, time, location } = data
 
-    const message = `⏰ 明日は合コンです！
+    const message = 'Reminder: your group date is coming soon!\nDate: ' + date + ' ' + time + '\nPlace: ' + location + '\n\nGet ready and have fun!'
 
-📅 日時: ${date} ${time}
-📍 場所: ${location}
+    return [{
+      type: 'text',
+      text: message
+    }]
+  }
 
-準備はいかがですか？
-素敵な出会いになりますように！`
+  private createPenaltyWarningMessage(data: any): LineMessage[] {
+    const { date, time } = data
+
+    const message = 'Your group date is approaching.\nDate: ' + date + ' ' + time + '\n\nPlease confirm the match in the app. If the start time passes without confirmation, your level will decrease.'
+
+    return [{
+      type: 'text',
+      text: message
+    }]
+  }
+
+  private createPenaltyAppliedMessage(data: any): LineMessage[] {
+    const { date, time, penaltyPoints, level } = data
+
+    const message = 'We could not confirm your participation.\nDate: ' + date + ' ' + time + '\nPenalty: -' + penaltyPoints + ' level point(s)\nCurrent level: ' + level + '\n\nPlease confirm future matches before the start time.'
 
     return [{
       type: 'text',
@@ -186,17 +214,22 @@ export async function sendNotification(
   template: NotificationTemplate,
   userSettings?: NotificationSettings
 ): Promise<boolean> {
-  // LINE連携していない場合はスキップ
-  if (!lineUserId || !userSettings?.line_connected) {
-    console.log('Skipping notification: LINE not connected')
+  if (!lineUserId) {
+    console.log('Skipping notification: LINE user ID is missing')
     return false
   }
 
-  // 通知設定をチェック
-  const shouldSend = checkNotificationSettings(template.type, userSettings)
-  if (!shouldSend) {
-    console.log(`Skipping notification: ${template.type} notifications disabled`)
-    return false
+  if (userSettings) {
+    if (!userSettings.line_connected) {
+      console.log('Skipping notification: LINE not connected in settings')
+      return false
+    }
+
+    const shouldSend = checkNotificationSettings(template.type, userSettings)
+    if (!shouldSend) {
+      console.log(`Skipping notification: ${template.type} notifications disabled`)
+      return false
+    }
   }
 
   const lineService = new LineNotificationService()
@@ -207,8 +240,16 @@ export async function sendNotification(
     messages
   }
 
-  return await lineService.sendMessage(payload)
+  const result = await lineService.sendMessage(payload)
+
+  if (typeof window === 'undefined') {
+    await logLineMessage(lineUserId, messages, result ? 'sent' : 'failed')
+  }
+
+  return result
 }
+
+/**
 
 /**
  * 通知設定をチェック
@@ -226,6 +267,10 @@ function checkNotificationSettings(
 
     case 'reminder':
       return settings.reminder_notifications
+
+    case 'penalty_warning':
+    case 'penalty_applied':
+      return true
 
     default:
       return false
@@ -269,6 +314,31 @@ export async function sendBulkNotification(
   }
 
   return { success, failed }
+}
+
+async function logLineMessage(lineUserId: string, messages: LineMessage[], status: 'sent' | 'failed') {
+  try {
+    const supabase = createServiceSupabaseClient()
+
+    const { data: user } = await supabase
+      .from('users')
+      .select('id')
+      .eq('line_user_id', lineUserId)
+      .maybeSingle()
+
+    if (!user?.id) {
+      return
+    }
+
+    await supabase.from('line_message_logs').insert({
+      user_id: user.id,
+      message_type: messages[0]?.type ?? 'text',
+      message_payload: { messages },
+      status
+    })
+  } catch (error) {
+    console.error('Failed to log LINE message:', error)
+  }
 }
 
 /**
