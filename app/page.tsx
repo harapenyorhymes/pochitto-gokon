@@ -86,7 +86,7 @@ export default function Home() {
   if (!profile) {
     return (
       <AuthGuard requireAuth={true}>
-        <div style={{minHeight: '100vh', background: 'linear-gradient(135deg, #fdf2f8, #ffffff, #faf5ff)', paddingTop: '48px', paddingBottom: '80px'}}>
+        <div style={{minHeight: '100vh', background: 'linear-gradient(135deg, #fdf2f8, #ffffff, #faf5ff)', paddingTop: '48px', paddingBottom: 'calc(5rem + env(safe-area-inset-bottom))'}}>
           <div style={{maxWidth: '428px', margin: '0 auto', padding: '0 16px'}}>
             <div style={{background: 'rgba(255, 255, 255, 0.9)', backdropFilter: 'blur(16px)', borderRadius: '16px', padding: '32px', textAlign: 'center', boxShadow: '0 10px 25px -3px rgba(0, 0, 0, 0.1)', marginTop: '48px'}}>
               <div style={{width: '80px', height: '80px', background: 'linear-gradient(135deg, #ec4899, #8b5cf6)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 24px', fontSize: '32px'}}>👤</div>
@@ -120,7 +120,7 @@ export default function Home() {
 
   return (
     <AuthGuard requireAuth={true}>
-      <div style={{minHeight: '100vh', background: 'linear-gradient(135deg, #fdf2f8, #ffffff, #faf5ff)', paddingTop: '24px', paddingBottom: '80px'}}>
+      <div style={{minHeight: '100vh', background: 'linear-gradient(135deg, #fdf2f8, #ffffff, #faf5ff)', paddingTop: '24px', paddingBottom: 'calc(5rem + env(safe-area-inset-bottom))'}}>
         {/* Header */}
         <header style={{background: 'rgba(255, 255, 255, 0.9)', backdropFilter: 'blur(20px)', borderBottom: '1px solid rgba(255, 255, 255, 0.2)', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'}}>
           <div style={{maxWidth: '428px', margin: '0 auto', padding: '0 16px'}}>

@@ -215,7 +215,7 @@ export default function EventsPage() {
 
   return (
     <AuthGuard requireAuth={true}>
-      <div className="min-h-screen bg-gradient-to-br from-pink-50 via-white to-purple-50 pb-48">
+      <div className="min-h-screen bg-gradient-to-br from-pink-50 via-white to-purple-50" style={{ paddingBottom: 'calc(8rem + env(safe-area-inset-bottom))' }}>
         {lineModal === 'link' && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm px-4">
             <div className="max-w-sm w-full rounded-2xl bg-white p-6 shadow-xl space-y-4 text-center">

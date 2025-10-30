@@ -71,7 +71,8 @@ export default function BottomNavigation() {
       backdropFilter: 'blur(20px)',
       borderTop: '1px solid rgba(255, 255, 255, 0.2)',
       zIndex: 50,
-      boxShadow: '0 -10px 25px -3px rgba(0, 0, 0, 0.1)'
+      boxShadow: '0 -10px 25px -3px rgba(0, 0, 0, 0.1)',
+      paddingBottom: 'env(safe-area-inset-bottom)'
     }}>
       <div style={{
         display: 'flex',

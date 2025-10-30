@@ -108,7 +108,7 @@ export default function MyEventsPage() {
 
   return (
     <AuthGuard requireAuth={true}>
-      <div style={{minHeight: '100vh', background: 'linear-gradient(135deg, #fdf2f8, #ffffff, #faf5ff)', paddingTop: '24px', paddingBottom: '80px'}}>
+      <div style={{minHeight: '100vh', background: 'linear-gradient(135deg, #fdf2f8, #ffffff, #faf5ff)', paddingTop: '24px', paddingBottom: 'calc(5rem + env(safe-area-inset-bottom))'}}>
         {/* Header */}
         <header style={{background: 'rgba(255, 255, 255, 0.9)', backdropFilter: 'blur(20px)', borderBottom: '1px solid rgba(255, 255, 255, 0.2)', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'}}>
           <div style={{maxWidth: '428px', margin: '0 auto', padding: '0 16px'}}>
